@@ -454,8 +454,12 @@ export function createPhone(G) {
     const s = S(), log = (s.cb ||= []);
     el.append(h('h3', {}, '📻 CB Radio'), h('p', { class: 'small' }, 'Channel 19: truckers, drivers and coffee fans on the road. Messages arrive while you drive.'),
       h('div', { class: 'row' }, h('button', { class: 'btn alt', onclick: () => { s.cbQuiet = !s.cbQuiet; render(); } }, s.cbQuiet ? '🔔 Alerts on' : '🔕 Silence alerts')));
+    const inp = h('input', { placeholder: 'key the mic…', maxlength: 160, style: 'width:70%' });
+    const send = () => { if (!inp.value.trim()) return; G.cbSay(inp.value); inp.value = ''; render(); };
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } e.stopPropagation(); });
+    el.append(inp, h('button', { class: 'btn', onclick: send }, 'Send'));
     if (!log.length) el.append(h('p', {}, 'Static… nothing yet. Keep driving.'));
-    for (const m of log.slice(-40).reverse()) el.append(h('div', { class: 'say' }, h('b', {}, m.handle + ': '), m.text, m.ai ? h('span', { class: 'small', title: 'Written by the AI', style: 'margin-left:6px;opacity:.7' }, '✨AI') : ''));
+    for (const m of log.slice(-40).reverse()) el.append(h('div', { class: 'say' + (m.me ? ' me' : '') }, h('b', {}, m.handle + ': '), m.text, m.ai ? h('span', { class: 'small', title: 'Written by the AI', style: 'margin-left:6px;opacity:.7' }, '✨AI') : ''));
   }
   function music(el) {
     const cur = getChannel();

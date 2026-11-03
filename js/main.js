@@ -54,7 +54,7 @@ const G = {
   snapshot: () => ({ state, player: { x: 0, z: 0 } }),
   restore: (sv) => { Object.assign(state, sv.state); ensureState(); notify('Game loaded.'); },
   autoPending: () => { for (const d of [...state.bank.decisions]) eco.applyDecision(state, d, eco.heuristic(state, d), 'player', true); },
-  aiText, npcReply: chatReply, printSheet,
+  aiText, npcReply: chatReply, printSheet, cbSay: (t) => cbSay(t),
   mapInfo: () => ({ track, player: race.player(), ai: race.ai() }),
   mini: () => ({ state, notify, sfx, aiText, aiJson, BAG_MOTIFS, server, npcReply: chatReply, money, eco, DATA, closeModal, price: G.price, unlockRoast, h, foodSVG, svgURI, pickRoast: () => DATA.roastStyles.filter((r) => state.roastsUnlocked.includes(r.id)) }),
 };
@@ -139,12 +139,22 @@ async function aiNews() {
 }
 
 let cbT = 20, cbBusy = false;
-async function cbPost() {
-  if (cbBusy) return;
+function cbSay(text) {
+  const log = (state.cb ||= []), msg = { handle: 'You', me: true, text: text.trim().slice(0, 160) };
+  if (!msg.text) return;
+  log.push(msg); if (log.length > 60) log.shift();
+  // Radio replies come a few seconds later, even if a message is mid-flight.
+  setTimeout(() => cbPost(msg), 2500 + Math.random() * 3000);
+}
+async function cbPost(replyTo = null) {
+  if (cbBusy) { if (replyTo) setTimeout(() => cbPost(replyTo), 2000); return; }
   cbBusy = true;
   try {
     const log = (state.cb ||= []);
-    const m = await nextCbMessage(cbContext(G, track, race), log.slice(-4));
+    // Sometimes answer the latest NPC message instead of starting a new topic.
+    const last = log[log.length - 1];
+    if (!replyTo && last && !last.me && Math.random() < 0.4) replyTo = last;
+    const m = await nextCbMessage(cbContext(G, track, race), log.slice(-6), replyTo);
     log.push({ handle: m.handle, text: m.text, ai: m.ai }); if (log.length > 60) log.shift();
     if (!state.cbQuiet) notify(`📻 ${m.handle}: ${m.text.slice(0, 80)}`, { sound: false, ms: 4500, onclick: () => phone.open('cb') });
     if (phone.isOpen()) phone.render();
