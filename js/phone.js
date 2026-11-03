@@ -13,8 +13,8 @@ const APPS = [
   ['settings', '⚙️', 'Settings'], ['irl', '☕', 'IRL Coffee'], ['news', '📰', 'News'],
   ['chat', '💬', 'Chat'], ['music', '🎵', 'Music'], ['pickle', '🏓', 'Pickleball'], ['map', '🗺️', 'Map'], ['guru', '☕', 'Coffee Guru'], ['alta', '🎬', 'Alta Redwood'], ['books', '📚', 'Books'], ['hoops', '🏀', 'Hoops'], ['cb', '📻', 'CB Radio'], ['ask', '🤖', 'Ask AI'], ['store', '⬇️', 'App Downloader'],
 ];
-// Purchases, Bank and Business belong to the original open-world game. Their code and save data stay intact; add the names back here to show them again.
-const TABS = ['Account', 'Stats', 'Diary', 'Roasts', 'TOWS', 'Controls', 'Debug', 'Credits', 'Terms', 'Privacy'];
+// Purchases, Bank, Business and TOWS belong to the original open-world game. Their code and save data stay intact; add the names back here to show them again.
+const TABS = ['Account', 'Stats', 'Diary', 'Roasts', 'Controls', 'Debug', 'Credits', 'Terms', 'Privacy'];
 
 export function createPhone(G) {
   const root = document.getElementById('phone');
