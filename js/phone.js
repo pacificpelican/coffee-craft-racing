@@ -13,7 +13,8 @@ const APPS = [
   ['settings', '⚙️', 'Settings'], ['irl', '☕', 'IRL Coffee'], ['news', '📰', 'News'],
   ['chat', '💬', 'Chat'], ['music', '🎵', 'Music'], ['pickle', '🏓', 'Pickleball'], ['map', '🗺️', 'Map'], ['guru', '☕', 'Coffee Guru'], ['alta', '🎬', 'Alta Redwood'], ['books', '📚', 'Books'], ['hoops', '🏀', 'Hoops'], ['cb', '📻', 'CB Radio'], ['ask', '🤖', 'Ask AI'], ['store', '⬇️', 'App Downloader'],
 ];
-const TABS = ['Account', 'Stats', 'Diary', 'Purchases', 'Bank', 'Business', 'Roasts', 'TOWS', 'Controls', 'Debug', 'Credits', 'Terms', 'Privacy'];
+// Purchases, Bank and Business belong to the original open-world game. Their code and save data stay intact; add the names back here to show them again.
+const TABS = ['Account', 'Stats', 'Diary', 'Roasts', 'TOWS', 'Controls', 'Debug', 'Credits', 'Terms', 'Privacy'];
 
 export function createPhone(G) {
   const root = document.getElementById('phone');
@@ -213,7 +214,8 @@ export function createPhone(G) {
 
   // ------------------------------------------------------------ Settings
   function settings(el) {
-    el.append(h('div', { class: 'tabs' }, ...TABS.map((t) => h('button', { class: t === tab ? 'on' : '', onclick: () => { tab = t; render(); } }, t + (t === 'Bank' && S().bank.decisions.length ? ` (${S().bank.decisions.length})` : '')))));
+    if (!TABS.includes(tab)) tab = TABS[0];
+    el.append(h('div', { class: 'tabs' }, ...TABS.map((t) => h('button', { class: t === tab ? 'on' : '', onclick: () => { tab = t; render(); } }, t))));
     const body = h('div'); el.append(body);
     ({ Account: tAccount, Stats: tStats, Diary: tDiary, Purchases: tPurchases, Bank: tBank, Business: tBusiness, TOWS: tTows, Debug: tDebug, Controls: tControls, Roasts: tRoasts, Credits: tCredits, Terms: tTerms, Privacy: tPrivacy })[tab](body);
   }
@@ -239,15 +241,11 @@ export function createPhone(G) {
   }
 
   function tStats(el) {
-    const s = S(), own = eco.ownedBusinesses(s), rc = s.race || {};
+    const s = S(), rc = s.race || {};
     const diff = h('select', { onchange: (e) => { rc.difficulty = e.target.value; G.notify('Difficulty: ' + e.target.value, { sound: false, ms: 1800 }); } }, h('option', { value: 'normal' }, 'Normal'), h('option', { value: 'challenging' }, 'Challenging (1.5× points)'));
     diff.value = rc.difficulty || 'normal';
     el.append(h('h4', {}, '🏁 Racing'), kv('Race points', rc.points || 0), kv('Races / wins', `${rc.races || 0} / ${rc.wins || 0}`), kv('Best time', Object.entries(rc.best || {}).map(([k, t]) => `${k} ${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`).join(', ') || '—'), kv('Coffees bought', rc.coffees || 0), kv('Difficulty', ''), diff, h('hr'), h('h4', {}, 'Town & economy'));
     el.append(kv('Day', s.day), kv('Time', fmtClock(s.minutes)), kv('Weather', s.weather), kv('Bank cash', money(s.bank.cash)), kv('Unique foods tried', s.diary.length), kv('Roasts unlocked', s.roastsUnlocked.length));
-    if (!own.length) return;
-    el.append(h('h4', {}, 'Your businesses'));
-    for (const b of own) el.append(h('details', {}, h('summary', {}, `${b.name} (${b.type})`), kv('Visitors (total/today)', `${b.totalVisitors} / ${b.dayVisitors}`), kv('Revenue (total/today)', `${money(b.totalRevenue)} / ${money(b.dayRevenue)}`), kv('Reputation', Math.round(b.reputation)), kv('Buzz', Math.round(b.buzz)), kv('Property', money(b.propertyValue)), kv('Inventory', money(b.inventoryValue)), kv('Savings', money(b.savings)), kv('Debt', money(b.debt))));
-    if (eco.needsBailout(s)) el.append(h('hr'), h('p', {}, 'Funds are low.'), h('button', { class: 'btn warn', onclick: () => bailoutUI() }, '🆘 Bailout'));
   }
   function bailoutUI() {
     const max = eco.bailoutMax(S());

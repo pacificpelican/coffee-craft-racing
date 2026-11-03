@@ -127,7 +127,7 @@ function wireEconomy() {
   eco.onEvent((type, e) => {
     if (type === 'news') { state.news.push({ day: state.day, text: e.text }); if (state.news.length > 80) state.news.shift(); if (Math.random() < 0.3) notify('📰 ' + e.text, { kind: 'news', onclick: () => phone.open('news') }); }
     else if (type === 'notify') notify(e.text, { kind: e.kind, onclick: e.onclick });
-    else if (type === 'decision') notify('🏦 A bank decision awaits: ' + e.text.slice(0, 70) + '…', { kind: 'decision', ms: 12000, onclick: () => phone.open('settings', { tab: 'Bank', bankTab: 'Decisions' }) });
+    // 'decision' (bank/business) is ignored while the Bank tab is hidden from Settings.
     else if (type === 'day') { saveLocal(); aiNews(); }
   });
 }
