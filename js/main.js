@@ -105,6 +105,7 @@ function loadLevel(id) {
   const lvl = LEVELS.levels.find((l) => l.id === id && l.ready) || LEVELS.levels.find((l) => l.ready);
   if (track) { track.remove(); race?.dispose(); }
   track = lvl.theme === 'highland' ? buildHighland(scene, lvl) : buildTrack(scene, lvl); R().level = lvl.id;
+  if (world.farWall) world.farWall.visible = lvl.theme !== 'highland'; // that cliff backdrop would stand across the highway approach
   if (scene.fog) { scene.fog.near = lvl.theme === 'highland' ? 90 : 60; scene.fog.far = lvl.theme === 'highland' ? 340 : 230; }
   race = createRace(scene, track, {
     count: (n) => { const c = $('#countdown'); c.textContent = n > 0 ? n : 'GO!'; sfx(n > 0 ? 'click' : 'bell'); if (!n) setTimeout(() => { c.textContent = ''; }, 800); },

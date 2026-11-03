@@ -325,7 +325,7 @@ export function buildWorld(scene, defList) {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(320, 260), new THREE.MeshLambertMaterial({ color: '#2f4636' }));
     floor.rotation.x = -Math.PI / 2; floor.position.set(EX + 150, -DEPTH, CZ - 130); add(floor);
     const far = new THREE.Mesh(new THREE.PlaneGeometry(260, 150), dbl(rockTex('#55524b', 200, [14, 6]), '#ffffff'));
-    far.rotation.y = -Math.PI / 2; far.position.set(EX + 150, -DEPTH + 55, CZ - 130); add(far);
+    far.rotation.y = -Math.PI / 2; far.position.set(EX + 150, -DEPTH + 55, CZ - 130); add(far); world.farWall = far;
     for (let i = 0; i < 90; i++) {
       const s = rand(2, 5); const t = new THREE.Mesh(new THREE.ConeGeometry(s * 0.7, s * 3, 6), mat(pick(['#2c4a34', '#25402e', '#35553b'])));
       t.position.set(EX + 8 + rnd() * 130, -DEPTH + s * 1.5, CZ - 240 + rnd() * 225); add(t);
