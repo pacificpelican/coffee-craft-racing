@@ -1,0 +1,69 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Coffee Craft Racing</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="tilt-top"></div><div id="tilt-bottom"></div>
+
+<div id="hud" class="hidden">
+  <div id="notifs"></div>
+  <div id="prompt"></div>
+  <div id="race-hud" class="hidden">
+    <div id="rh-pos">1st</div><div id="rh-time">0:00.0</div><div id="rh-speed">0</div><div id="rh-boost"></div>
+    <div id="rh-bar"><i id="rh-ai"></i><i id="rh-me"></i></div>
+  </div>
+  <div id="countdown"></div>
+  <div id="hud-top">
+    <button id="btn-pause" title="Pause (P)">⏸</button>
+    <button id="btn-mute" title="Mute (M)">🔊</button>
+    <button id="btn-phone" title="Phone (Tab)">📱</button>
+  </div>
+  <div id="pad" class="pad">
+    <button data-d="-1,-1" class="d dnw"></button><button data-d="0,-1" class="d dn">▲</button><button data-d="1,-1" class="d dne"></button>
+    <button data-d="-1,0" class="d dw">◀</button><span class="d dc"></span><button data-d="1,0" class="d de">▶</button>
+    <button data-d="-1,1" class="d dsw"></button><button data-d="0,1" class="d ds">▼</button><button data-d="1,1" class="d dse"></button>
+  </div>
+  <div id="abtns">
+    <button data-k="horn" class="ab a1" title="Horn (/)">📣</button>
+    <button data-k="coffee" class="ab a2" title="Coffee boost / pull in (&#39;)">☕</button>
+    <button data-k="gas" class="ab a3" title="Gas (.)">⏩</button>
+    <button data-k="brake" class="ab a4" title="Brake / reverse (,)">🛑</button>
+  </div>
+</div>
+
+<div id="intro" class="overlay">
+  <div class="card intro">
+    <div id="intro-logo"></div>
+    <h1>Coffee Craft Racing</h1>
+    <p class="slogan">Beans, boost and a robo-taxi on your tail</p>
+    <p>Race a driverless robo-taxi from the quiet forest highway into town and out to the pier. Grab coffee at roadside stands, chat with the baristas, earn points to unlock new cars, and keep the Coffee Guru app handy on your phone.</p>
+    <div class="controls-info">
+      <b>Controls</b> — Steer: arrows / A D / on-screen pad &nbsp;·&nbsp; ⏩ <kbd>.</kbd> or <kbd>W</kbd> gas &nbsp;·&nbsp; 🛑 <kbd>,</kbd> or <kbd>S</kbd> brake / reverse &nbsp;·&nbsp; 📣 <kbd>/</kbd> horn &nbsp;·&nbsp; ☕ <kbd>'</kbd> coffee boost / pull into a stand &nbsp;·&nbsp; <kbd>P</kbd> pause &nbsp;·&nbsp; <kbd>Tab</kbd> phone
+    </div>
+    <div class="row"><button id="play" class="big">▶ Play</button><button id="continue" class="big alt hidden">Continue</button></div>
+    <p class="credit">Created by <a href="https://altaredwood.work" target="_blank" rel="noopener">Daniel McKeown</a> · Alta Redwood Pictures</p>
+    <p class="credit age-note">Intended for players 18 and over. See the <a href="#terms" id="intro-terms">Terms</a>.</p>
+    <p id="intro-status" class="small"></p>
+  </div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <div class="card">
+    <h2>Paused</h2>
+    <div class="row"><button id="p-resume" class="big">Resume</button><button id="p-settings" class="big alt">⚙ Settings</button><button id="p-shot" class="big alt">📷 Screenshot</button><button id="p-exit" class="big warn">🏁 Exit to menu</button></div>
+    <div id="shot-box" class="hidden"></div>
+  </div>
+</div>
+
+<div id="modal" class="overlay hidden"><div class="card" id="modal-card"></div></div>
+<div id="phone" class="hidden"></div>
+<div id="print-sheet"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

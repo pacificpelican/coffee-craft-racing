@@ -1,0 +1,30 @@
+{
+  "levels": [
+    {
+      "id": "forest",
+      "name": "Forest Road to Harbor Town",
+      "blurb": "Miles of quiet forest highway, then through the pink haze into town and out along the pier.",
+      "ready": true,
+      "waypoints": [
+        [62, 4300, 0], [62, 3700, 220], [320, 3050, 220], [320, 2350, 220], [-150, 1800, 200],
+        [-150, 1150, 200], [62, 620, 200], [62, 300, 0],
+        [62, 124, 0], [62, -62, 18], [-62, -62, 18], [-62, 58, 18], [-172, 58, 0]
+      ],
+      "stands": [
+        { "fromEnd": 3300, "side": 1, "kind": "trailer", "name": "Pine Pull-Off Coffee", "barista": { "name": "Marnie", "bio": "a cheerful trail-runner who parks her coffee trailer under the tall pines" } },
+        { "fromEnd": 1750, "side": -1, "kind": "trailer", "name": "Last Stop Espresso", "barista": { "name": "Old Gus", "bio": "a gravelly retired trucker who has opinions on every curve of this road" } },
+        { "fromEnd": 400, "side": -1, "kind": "trailer", "name": "Hazeline Coffee Trailer", "barista": { "name": "Pim", "bio": "a dreamy barista who says the pink haze is the town's best secret" } },
+        { "fromEnd": 110, "side": 1, "kind": "drivethru", "name": "Pier Drive-Thru", "barista": { "name": "Tosh", "bio": "a speedy drive-thru barista who times every driver" } }
+      ]
+    },
+    { "id": "alpine", "name": "Alpine Pass Descent", "blurb": "Start atop the mountain pass, watch for deer, then the Interstate and the highway bridge over town.", "ready": false },
+    { "id": "desert", "name": "Sunland Canyon Run", "blurb": "A narrow desert valley road through canyons to the faded town of Sunland.", "ready": false }
+  ],
+  "menu": [
+    ["Drip Coffee", 3, "coffee", "A big honest cup. Quick boost."],
+    ["Oat Latte", 5, "latte", "Smooth and steamy, with a leaf in the foam."],
+    ["Cold Brew", 4, "coffee", "Slow-steeped and mean. Brisk kick."],
+    ["Double Espresso", 4, "coffee", "Two shots, zero patience."],
+    ["Cinnamon Roll Latte", 6, "latte", "Dessert you can drive with."]
+  ]
+}
