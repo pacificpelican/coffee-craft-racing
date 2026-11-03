@@ -218,7 +218,7 @@ function openSelect() {
     const draw = () => {
       card.replaceChildren();
       const strat = strataOf(r.points);
-      const levelBtns = LEVELS.levels.map((l) => h('button', { class: 'opt' + (l.id === r.level ? ' sel' : '') + (l.ready ? '' : ' locked'), onclick: () => { if (!l.ready) return notify('That road is still being paved. Coming soon!', { sound: false }); if (l.id !== r.level) loadLevel(l.id); draw(); } }, h('b', {}, (l.ready ? '' : '🚧 ') + l.name), h('small', {}, l.ready ? l.blurb : 'Coming soon')));
+      const levelBtns = LEVELS.levels.filter((l) => l.ready).map((l) => h('button', { class: 'opt' + (l.id === r.level ? ' sel' : ''), onclick: () => { if (l.id !== r.level) loadLevel(l.id); draw(); } }, h('b', {}, (l.ready ? '' : '🚧 ') + l.name), h('small', {}, l.ready ? l.blurb : 'Coming soon')));
       const carBtns = CARS.map((c) => { const lock = r.points < c.unlock; return h('button', { class: 'opt' + (c.id === r.car ? ' sel' : '') + (lock ? ' locked' : ''), onclick: () => { if (lock) return notify(`Unlocks at ${c.unlock} points (you have ${r.points}).`, { sound: false }); r.car = c.id; setupGrid(); draw(); } }, h('b', {}, (lock ? '🔒 ' : '') + c.name), h('small', {}, lock ? `Needs ${c.unlock} points` : c.blurb), h('small', {}, `Top ${Math.round(c.top * 3.6)} km/h · Grip ${c.grip < 4 ? 'loose' : c.grip < 6 ? 'medium' : 'firm'}`)); });
       const sel = h('select', { onchange: (e) => { r.difficulty = e.target.value; setupGrid(); } }, h('option', { value: 'normal' }, 'Normal — relaxed robo-taxi'), h('option', { value: 'challenging' }, 'Challenging — all-out driver, 1.5× points'));
       sel.value = r.difficulty;
