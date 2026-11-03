@@ -37,6 +37,21 @@
         ]
       }
     },
+    {
+      "id": "islands", "name": "Island Haul", "theme": "islands", "ready": true,
+      "blurb": "Start in a tiny Norwegian village, cross a chain of pine islands by bridge, then race the neighborhood streets by firelight to the forest at the edge of town.",
+      "mapHint": "The road runs from the village at the top (north), south across the bridges, then through the town to the forest at the bottom (finish).",
+      "waypoints": [[0,-2034,0,4],[0,-1818,70,4],[90,-1728,70,4],[90,-1512,0,5.5],[90,-1422,70,4.5],[-20,-1332,70,4.5],[-20,-1062,0,5.5],[-20,-972,70,5],[110,-882,70,5],[110,-666,0,5.5],[110,-612,60,4.5],[-30,-558,60,4.5],[-30,-306,60,3],[-124,-225,80,0],[-124,-62,16,0],[-62,-62,16,0],[-62,0,16,0],[0,0,16,0],[0,62,16,0],[-62,62,16,0],[-62,192,0,0]],
+      "islands": [[30,-1854,150,270],[50,-1332,140,252],[40,-900,140,216],[40,-576,160,108],[-10,-260,230,140]],
+      "village": [30, 330],
+      "trolls": [[60, 1], [120, -1], [215, 1], [290, -1]],
+      "stands": [
+        { "s": 180, "side": 1, "kind": "cabin", "sign": "KAFFE · KRINGLER", "name": "Kaffe & Kringler", "barista": { "name": "Astrid", "bio": "a rosy-cheeked Norwegian baker who sells kringles and strong coffee, and swears the trolls only steal the cardamom buns" } },
+        { "s": 700, "side": -1, "kind": "cabin", "name": "Ferry Landing Coffee", "barista": { "name": "Leif", "bio": "a weathered ferry deckhand who brews on a camp stove and counts the deer on every island" } },
+        { "s": 1990, "side": 1, "kind": "trailer", "name": "Shoreline Espresso", "barista": { "name": "Mika", "bio": "an upbeat barista who parks her trailer where the last bridge meets the mainland" } },
+        { "fromEnd": 150, "side": -1, "kind": "trailer", "name": "Edge of Town Coffee", "barista": { "name": "Fern", "bio": "a quiet barista who tends a coffee trailer at the edge of the forest and likes the glow of the barrel fires" } }
+      ]
+    },
     { "id": "desert", "name": "Sunland Canyon Run", "blurb": "A narrow desert valley road through canyons to the faded town of Sunland.", "ready": false }
   ],
   "menu": [

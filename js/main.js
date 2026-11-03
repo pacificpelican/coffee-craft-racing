@@ -11,6 +11,7 @@ import { buildEnvironment } from './traffic.js';
 import { createPhone } from './phone.js';
 import { buildTrack } from './track.js';
 import { buildHighland } from './highland.js';
+import { buildIslands } from './islands.js';
 import { createRace, STRATA, strataOf } from './race.js';
 import { CARS, carById } from './cars.js';
 
@@ -98,15 +99,18 @@ async function boot() {
   if (localStorage.getItem(SAVE_KEY)) $('#continue').classList.remove('hidden');
   $('#intro-status').textContent = server.available ? `Server: ${server.storage}${server.ai ? ' · AI: ' + server.aiProvider : ' · AI off'}` : 'Static mode (no PHP): saves stay in this browser.';
   renderer.setAnimationLoop(frame);
-  window.__cc = { state, world, THREE, scene, camera, eco, G, get race() { return race; }, get track() { return track; } };
+  window.__cc = { state, world, THREE, scene, camera, eco, G, renderer, frame, get race() { return race; }, get track() { return track; } };
 }
 
 function loadLevel(id) {
   const lvl = LEVELS.levels.find((l) => l.id === id && l.ready) || LEVELS.levels.find((l) => l.ready);
   if (track) { track.remove(); race?.dispose(); }
-  track = lvl.theme === 'highland' ? buildHighland(scene, lvl) : buildTrack(scene, lvl); R().level = lvl.id;
+  track = lvl.theme === 'highland' ? buildHighland(scene, lvl) : lvl.theme === 'islands' ? buildIslands(scene, lvl) : buildTrack(scene, lvl); R().level = lvl.id;
   if (world.farWall) world.farWall.visible = lvl.theme !== 'highland'; // that cliff backdrop would stand across the highway approach
-  if (scene.fog) { scene.fog.near = lvl.theme === 'highland' ? 90 : 60; scene.fog.far = lvl.theme === 'highland' ? 340 : 230; }
+  // skyline towers that would stand on the island route's approach are hidden
+  for (const b of world.skyline || []) b.mesh.visible = !(lvl.theme === 'islands' && track.P.some((p, i) => i % 3 === 0 && Math.hypot(p.x - b.x, p.z - b.z) < b.r + 30));
+  const open = lvl.theme === 'highland' || lvl.theme === 'islands';
+  if (scene.fog) { scene.fog.near = open ? 90 : 60; scene.fog.far = open ? 340 : 230; }
   race = createRace(scene, track, {
     count: (n) => { const c = $('#countdown'); c.textContent = n > 0 ? n : 'GO!'; sfx(n > 0 ? 'click' : 'bell'); if (!n) setTimeout(() => { c.textContent = ''; }, 800); },
     bump: () => sfx('hit'),

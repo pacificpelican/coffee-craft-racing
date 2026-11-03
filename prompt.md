@@ -87,3 +87,8 @@
 - so much will carry over from the original game but given the parameters of this game, we can probably thoughtfully eliminate some code and date from the original, but there are many things that we want to keep, especially since we are not making major UI changes right away (with exceptions of course like the controller buttons)
 - want to generate a new logo for this game, maybe one that is based on a wheel + a deer or a car + coffee or something
 - this game inherits settings and conventions from the original Coffee Craft game, so this would be more relevant in other prompts but as a new game is being started after the creation of the first spec for Alta Redwood games, and can be found inside the ["./spec"] directory of this project and while this game already had a lot of decisions made, it might be worth consulting the document anyway when building this game
+
+---
+
+# Island Haul level
+- another level should be one which traverses bridges between a handful of islands.  the level should start by going through a tiny town with Norwegian flags posted around and a coffee and kringles stand a few trolls wandering the area; it should then go through pine tree and racoon and deer filled areas connected by bridges to each other; after a while the course should connect in to the neighborhood but one the opposite side of where level one comes in; at that point the course (which should go through some neighborhood streets and then end at the forest area on the edge of town) should be marked by trash cans with fires in them (I think they already appear in the game) around both sides of the route that the player should take.

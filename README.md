@@ -39,7 +39,7 @@ optional AI proxy light up automatically (see `config.local.php.example`).
 
 ## Status
 
-Levels 1 (Forest Road to Harbor Town) and 2 (Alpine Pass Descent: a mountain descent with crossing deer, then an Interstate with NPC traffic and the highway bridge over town) are playable. Sunland Canyon Run is listed as "coming soon".
+Levels 1 (Forest Road to Harbor Town), 2 (Alpine Pass Descent: a mountain descent with crossing deer, then an Interstate with NPC traffic and the highway bridge over town) and 3 (Island Haul: a Norwegian village with trolls, bridges across pine islands with raccoons and deer, then neighborhood streets lit by fire barrels to the forest at the edge of town) are playable. Sunland Canyon Run is listed as "coming soon".
 
 ## Layout
 

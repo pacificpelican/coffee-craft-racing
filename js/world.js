@@ -602,6 +602,7 @@ export function buildWorld(scene, defList) {
   }
 
   function buildSkyline() {
+    world.skyline = []; // each level hides the towers that would stand on its route
     for (let k = 0; k < 40; k++) {
       const a = rnd() * Math.PI * 2, r = 190 + rnd() * 60;
       const h = 30 + rnd() * 70;
@@ -609,7 +610,7 @@ export function buildWorld(scene, defList) {
       if (sx > 100 && sz > 50) continue; // keep the south-east woods clear
       const w = rand(10, 22), d = rand(10, 22), col = pick(['#5d6a70', '#6a6e6c', '#4a5a60']);
       if (Math.abs(sz + 142) < 28 + d / 2) continue; // keep the highway bridge and its approach clear
-      add(box(w, h, d, col, sx, h / 2, sz));
+      world.skyline.push({ mesh: add(box(w, h, d, col, sx, h / 2, sz)), x: sx, z: sz, r: Math.max(w, d) / 2 });
     }
     // Smith-tower-like landmark (after the sketch in ./art)
     const t = new THREE.Group(); t.position.set(-170, 0, 20);
