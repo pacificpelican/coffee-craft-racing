@@ -39,7 +39,7 @@ optional AI proxy light up automatically (see `config.local.php.example`).
 
 ## Status
 
-Level 1 (Forest Road to Harbor Town) is playable. The Alpine Pass and Sunland Canyon roads are listed as "coming soon".
+Levels 1 (Forest Road to Harbor Town) and 2 (Alpine Pass Descent: a mountain descent with crossing deer, then an Interstate with NPC traffic and the highway bridge over town) are playable. Sunland Canyon Run is listed as "coming soon".
 
 ## Layout
 

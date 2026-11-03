@@ -165,7 +165,7 @@ export function createPhone(G) {
       <polyline points="${line}" fill="none" stroke="#4a5055" stroke-width="${Math.max(x1 - x0, z1 - z0) / 160}" stroke-linejoin="round"/>
       ${stands}${dot('mapAi', '#5ee6ff')}${dot('mapMe', '#d03c4a')}</svg>`;
     const wrap = h('div', { class: 'mapwrap', html: svg });
-    el.append(h('h3', {}, '🗺️ ' + track.level.name), h('p', { class: 'small' }, '🔴 you · 🔵 robo-taxi · brown dots are coffee stands. The road runs from the bottom (start) to the top-left (finish at the pier).'), wrap);
+    el.append(h('h3', {}, '🗺️ ' + track.level.name), h('p', { class: 'small' }, '🔴 you · 🔵 robo-taxi · brown dots are coffee stands. ' + (track.level.mapHint || 'The road runs from the bottom (start) to the top-left (finish at the pier).')), wrap);
     const me = wrap.querySelector('#mapMe'), rb = wrap.querySelector('#mapAi');
     const place = () => { me.setAttribute('cx', player.x); me.setAttribute('cy', player.z); rb.setAttribute('cx', ai.x); rb.setAttribute('cy', ai.z); };
     const tm = setInterval(() => { if (!me.isConnected) return clearInterval(tm); place(); }, 300); place();

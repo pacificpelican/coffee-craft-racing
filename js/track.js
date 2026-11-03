@@ -11,25 +11,28 @@ export const FOREST_Z = 135; // south of this the course is the town's own stree
 export function halfWidth(z) { return z > 140 ? 7 : z < 126 ? 5.5 : 5.5 + 1.5 * ((z - 126) / 14); }
 
 // Build samples from [x, z, cornerRadius] waypoints, rounding corners with quadratic curves.
+// Waypoints may carry a fourth value: the road height at that point (0 when omitted).
 export function buildCenterline(wps) {
   const raw = [];
   const seg = (a, b) => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]); return [(b[0] - a[0]) / l, (b[1] - a[1]) / l, l]; };
-  raw.push([wps[0][0], wps[0][1]]);
+  const yOf = (w) => w[3] || 0;
+  raw.push([wps[0][0], wps[0][1], yOf(wps[0])]);
   for (let i = 1; i < wps.length - 1; i++) {
     const [x, z, r] = wps[i]; const [dx0, dz0, l0] = seg(wps[i - 1], wps[i]); const [dx1, dz1, l1] = seg(wps[i], wps[i + 1]);
     const turn = Math.acos(Math.max(-1, Math.min(1, dx0 * dx1 + dz0 * dz1)));
-    if (!r || turn < 0.01) { raw.push([x, z]); continue; }
+    if (!r || turn < 0.01) { raw.push([x, z, yOf(wps[i])]); continue; }
     const t = Math.min(r * Math.tan(turn / 2), l0 * 0.45, l1 * 0.45);
     const ax = x - dx0 * t, az = z - dz0 * t, bx = x + dx1 * t, bz = z + dz1 * t;
-    for (let k = 0; k <= 16; k++) { const u = k / 16, v = 1 - u; raw.push([v * v * ax + 2 * u * v * x + u * u * bx, v * v * az + 2 * u * v * z + u * u * bz]); }
+    const ya = yOf(wps[i]) - (yOf(wps[i]) - yOf(wps[i - 1])) * (t / l0), yb = yOf(wps[i]) + (yOf(wps[i + 1]) - yOf(wps[i])) * (t / l1);
+    for (let k = 0; k <= 16; k++) { const u = k / 16, v = 1 - u; raw.push([v * v * ax + 2 * u * v * x + u * u * bx, v * v * az + 2 * u * v * z + u * u * bz, ya + (yb - ya) * u]); }
   }
-  raw.push([wps[wps.length - 1][0], wps[wps.length - 1][1]]);
+  raw.push([wps[wps.length - 1][0], wps[wps.length - 1][1], yOf(wps[wps.length - 1])]);
   const cum = [0]; for (let i = 1; i < raw.length; i++) cum.push(cum[i - 1] + Math.hypot(raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1]));
   const total = cum[cum.length - 1]; const n = Math.floor(total / DS); const P = []; let j = 0;
   for (let i = 0; i <= n; i++) {
     const s = i * DS; while (j < raw.length - 2 && cum[j + 1] < s) j++;
     const u = (s - cum[j]) / Math.max(1e-6, cum[j + 1] - cum[j]);
-    P.push({ x: raw[j][0] + (raw[j + 1][0] - raw[j][0]) * u, z: raw[j][1] + (raw[j + 1][1] - raw[j][1]) * u, s });
+    P.push({ x: raw[j][0] + (raw[j + 1][0] - raw[j][0]) * u, z: raw[j][1] + (raw[j + 1][1] - raw[j][1]) * u, y: raw[j][2] + (raw[j + 1][2] - raw[j][2]) * u, s });
   }
   for (let i = 0; i < P.length; i++) {
     const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)]; const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
@@ -43,13 +46,19 @@ export function buildCenterline(wps) {
   return P;
 }
 
-export function buildTrack(scene, level) {
-  const P = buildCenterline(level.waypoints); const length = P[P.length - 1].s;
-  const track = { P, length, level, half: halfWidth, stands: [], wildlife: [], dispose: [] };
-  const group = new THREE.Group(); scene.add(group); track.group = group;
-  const at = (s) => P[Math.max(0, Math.min(P.length - 1, Math.round(s / DS)))];
-  track.at = at;
+export { DS };
 
+// Position/curvature queries shared by every course (needs track.P).
+export function attachQueries(track) {
+  const P = track.P;
+  track.at = (s) => P[Math.max(0, Math.min(P.length - 1, Math.round(s / DS)))];
+  // linearly interpolated point on the centre line at distance s
+  track.sample = (s) => {
+    const f = Math.max(0, Math.min(P.length - 1.001, s / DS)), i = Math.floor(f), u = f - i, a = P[i], b = P[i + 1];
+    const tx = a.tx + (b.tx - a.tx) * u, tz = a.tz + (b.tz - a.tz) * u, l = Math.hypot(tx, tz) || 1;
+    return { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u, y: a.y + (b.y - a.y) * u, tx: tx / l, tz: tz / l, nx: -tz / l, nz: tx / l, hd: Math.atan2(tx, tz), hw: a.hw === undefined ? undefined : a.hw + (b.hw - a.hw) * u };
+  };
+  track.yAt = (s) => track.sample(s).y;
   // nearest centre-line position (windowed around a hint index for speed and to avoid jumping legs)
   track.nearest = (x, z, hint = -1) => {
     let lo = 0, hi = P.length - 1; if (hint >= 0) { lo = Math.max(0, hint - 40); hi = Math.min(P.length - 1, hint + 40); }
@@ -59,6 +68,57 @@ export function buildTrack(scene, level) {
     return { i: bi, s: p.s + along, lat: (x - p.x) * p.nx + (z - p.z) * p.nz, p };
   };
   track.curvAhead = (i, dist) => { let k = 0; const n = Math.ceil(dist / DS); for (let j = i; j < Math.min(P.length, i + n); j++) k = Math.max(k, P[j].k); return k; };
+}
+
+// Start/finish banner texture; a white background draws the chequered finish pattern.
+export function bannerTexture(text, bg) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 96; const g = c.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, 512, 96);
+  if (bg === '#fff') { g.fillStyle = '#111'; for (let y = 0; y < 96; y += 24) for (let x = (y / 24) % 2 * 24; x < 512; x += 48) g.fillRect(x, y, 24, 24); }
+  g.fillStyle = bg === '#fff' ? '#d9772b' : '#fff6dc'; g.font = 'bold 48px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.strokeStyle = '#111'; g.lineWidth = 6;
+  if (text) { g.strokeText(text, 256, 50); g.fillText(text, 256, 50); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+// hw(p) is the road half-width at sample p; y comes from the sample so gates sit on elevated roads too.
+export function addGates(track, group, hw) {
+  const { length } = track, at = track.at;
+  const gate = (s, text, bg) => {
+    const p = at(s), w = hw(p) + 1.2; const g = new THREE.Group();
+    for (const side of [-1, 1]) { const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7, 0.5), mat('#2b2f2a')); pole.position.set(side * w, 3.5, 0); g.add(pole); }
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w * 2 + 0.5, 1.8, 0.3), new THREE.MeshBasicMaterial({ map: bannerTexture(text, bg) })); b.position.set(0, 6.6, 0); g.add(b);
+    // rotate so the local +x axis (the poles) lies along the track normal
+    g.position.set(p.x, p.y, p.z); g.rotation.y = Math.atan2(-p.nz, p.nx); group.add(g);
+    return g;
+  };
+  gate(8, 'START', '#d9772b'); gate(length - 30, 'FINISH', '#fff');
+  track.finishS = length - 30; track.startS = 8;
+}
+
+// Roadside coffee stands. standOffset(p) is how far past the road edge the stand sits; p.y raises it on elevated roads.
+export function addStands(track, group, hw, standOffset) {
+  for (const d of track.level.stands || []) {
+    const s = d.s ?? track.length - d.fromEnd; const p = track.at(s); const half = hw(p);
+    const lat = d.side * (half + standOffset(p)); const g = new THREE.Group();
+    const cabin = d.kind === 'cabin';
+    const body = d.kind === 'drivethru' ? '#8a5a3c' : cabin ? '#7a5a3c' : '#e8dcc0';
+    const box = (w, hh, d2, c, x, y, z2) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d2), mat(c)); m.position.set(x, y, z2); g.add(m); };
+    box(6, 3.2, 2, body, 0, 1.8, -0.8); box(6, 1.1, 0.5, '#8a5a3c', 0, 0.75, 1.3);
+    if (cabin) { const roof = new THREE.Mesh(new THREE.ConeGeometry(4.6, 1.9, 4), mat('#4a3a2a')); roof.rotation.y = Math.PI / 4; roof.scale.set(1.35, 1, 0.7); roof.position.set(0, 4.55, -0.8); g.add(roof); }
+    const awn = new THREE.Mesh(new THREE.BoxGeometry(7, 0.25, 2.4), mat('#c2332a')); awn.position.set(0, 3.5, 1.1); awn.rotation.x = 0.12; g.add(awn);
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1, 0.2), new THREE.MeshBasicMaterial({ map: bannerTexture('COFFEE', '#2b2f2a') })); sign.position.set(0, 4.3, 0.3); g.add(sign);
+    const bar = makeHuman({ shirt: '#c2332a', pants: '#2b2f2a', skin: '#d9a67a', hair: '#4a3020' }); bar.position.set(-1.2, 0.2, 0.55); g.add(bar);
+    if (!cabin) for (const wx of [-2, 2]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 10), mat('#1f2320')); wh.rotation.z = Math.PI / 2; wh.position.set(wx * 1.2 + (wx > 0 ? 0.4 : -0.4), 0.5, -0.8); g.add(wh); }
+    g.position.set(p.x + p.nx * lat, p.y, p.z + p.nz * lat); g.rotation.y = Math.atan2(-d.side * p.nx, -d.side * p.nz); group.add(g);
+    track.stands.push({ ...d, s, x: g.position.x, z: g.position.z, mesh: g });
+  }
+}
+
+export function buildTrack(scene, level) {
+  const P = buildCenterline(level.waypoints); const length = P[P.length - 1].s;
+  const track = { P, length, level, half: (p) => halfWidth(p.z), wallMargin: (p) => (p.z > 140 ? 4 : 0.9), stands: [], wildlife: [], dispose: [] };
+  const group = new THREE.Group(); scene.add(group); track.group = group;
+  attachQueries(track);
+  const at = track.at;
 
   // forest ground and the road ribbon
   const forestEnd = P.findIndex((p) => p.z < FOREST_Z);
@@ -82,7 +142,7 @@ export function buildTrack(scene, level) {
   const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); rg.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); rg.setIndex(idx); rg.computeVertexNormals();
   const ribbon = new THREE.Mesh(rg, new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide })); ribbon.frustumCulled = false; group.add(ribbon);
 
-  const bannerTex = (text, bg) => { const c = document.createElement('canvas'); c.width = 512; c.height = 96; const g = c.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, 512, 96); if (bg === '#fff') { g.fillStyle = '#111'; for (let y = 0; y < 96; y += 24) for (let x = (y / 24) % 2 * 24; x < 512; x += 48) g.fillRect(x, y, 24, 24); } g.fillStyle = bg === '#fff' ? '#d9772b' : '#fff6dc'; g.font = 'bold 48px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.strokeStyle = '#111'; g.lineWidth = 6; if (text) { g.strokeText(text, 256, 50); g.fillText(text, 256, 50); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const bannerTex = bannerTexture;
   const dinerS = Math.min(2520, Math.max(850, length * 0.48));
   const dinerPath = at(dinerS), dinerSide = 1;
   const dinerX = dinerPath.x + dinerPath.nx * (halfWidth(dinerPath.z) + 21);
@@ -248,32 +308,8 @@ export function buildTrack(scene, level) {
   candleBases.computeBoundingSphere(); candleWaxes.computeBoundingSphere(); candleFlames.computeBoundingSphere();
   group.add(candleBases, candleWaxes, candleFlames);
 
-  // gates
-  const gate = (s, text, bg) => {
-    const p = at(s), w = halfWidth(p.z) + 1.2; const g = new THREE.Group();
-    for (const side of [-1, 1]) { const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7, 0.5), mat('#2b2f2a')); pole.position.set(side * w, 3.5, 0); g.add(pole); }
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w * 2 + 0.5, 1.8, 0.3), new THREE.MeshBasicMaterial({ map: bannerTex(text, bg) })); b.position.set(0, 6.6, 0); g.add(b);
-    // rotate so the local +x axis (the poles) lies along the track normal
-    g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(-p.nz, p.nx); group.add(g);
-    return g;
-  };
-  gate(8, 'START', '#d9772b'); gate(length - 30, 'FINISH', '#fff');
-  track.finishS = length - 30; track.startS = 8;
-
-  // roadside coffee stands
-  for (const d of level.stands || []) {
-    const s = length - d.fromEnd; const p = at(s); const half = halfWidth(p.z);
-    const lat = d.side * (half + (p.z > 140 ? 6.5 : 4.5)); const g = new THREE.Group();
-    const body = d.kind === 'drivethru' ? '#8a5a3c' : '#e8dcc0';
-    const box = (w, hh, d2, c, x, y, z2) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d2), mat(c)); m.position.set(x, y, z2); g.add(m); };
-    box(6, 3.2, 2, body, 0, 1.8, -0.8); box(6, 1.1, 0.5, '#8a5a3c', 0, 0.75, 1.3);
-    const awn = new THREE.Mesh(new THREE.BoxGeometry(7, 0.25, 2.4), mat('#c2332a')); awn.position.set(0, 3.5, 1.1); awn.rotation.x = 0.12; g.add(awn);
-    const sign = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1, 0.2), new THREE.MeshBasicMaterial({ map: bannerTex('COFFEE', '#2b2f2a') })); sign.position.set(0, 4.3, 0.3); g.add(sign);
-    const bar = makeHuman({ shirt: '#c2332a', pants: '#2b2f2a', skin: '#d9a67a', hair: '#4a3020' }); bar.position.set(-1.2, 0.2, 0.55); g.add(bar);
-    for (const wx of [-2, 2]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 10), mat('#1f2320')); wh.rotation.z = Math.PI / 2; wh.position.set(wx * 1.2 + (wx > 0 ? 0.4 : -0.4), 0.5, -0.8); g.add(wh); }
-    g.position.set(p.x + p.nx * lat, 0, p.z + p.nz * lat); g.rotation.y = Math.atan2(-d.side * p.nx, -d.side * p.nz); group.add(g);
-    track.stands.push({ ...d, s, x: g.position.x, z: g.position.z, mesh: g });
-  }
+  addGates(track, group, (p) => halfWidth(p.z));
+  addStands(track, group, (p) => halfWidth(p.z), (p) => (p.z > 140 ? 6.5 : 4.5));
 
   track.remove = () => { scene.remove(group); group.traverse((o) => { o.geometry?.dispose?.(); }); };
   return track;

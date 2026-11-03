@@ -83,4 +83,4 @@ export const CARS = [
 ];
 
 export const carById = (id) => CARS.find((c) => c.id === id) || CARS[0];
-export const makeCar = (id) => builders[carById(id).id](carById(id).color);
+export const makeCar = (id, color) => builders[carById(id).id](color || carById(id).color);

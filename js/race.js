@@ -3,6 +3,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { clamp, angDiff } from './util.js';
 import { carById, makeCar } from './cars.js';
 import { makeRoboCar } from './rideshare.js';
+import { createHazards } from './hazards.js';
 
 export const STRATA = [0, 150, 400, 800]; // points needed for each AI skill stratum
 export const SKILL = { normal: [0.74, 0.8, 0.86, 0.92], challenging: [0.92, 0.98, 1.04, 1.1] };
@@ -16,7 +17,7 @@ function stepCar(c, d, thr, steer, dt, track) {
   const sn = Math.sin(c.h), cs = Math.cos(c.h);
   let vf = c.vx * sn + c.vz * cs, vl = c.vx * cs - c.vz * sn;
   const nr = track.nearest(c.x, c.z, c.i); c.i = nr.i; c.s = nr.s; c.lat = nr.lat;
-  const half = track.half(nr.p.z), off = Math.abs(nr.lat) > half;
+  const half = track.half(nr.p), off = Math.abs(nr.lat) > half;
   const boosting = c.boost > 0; if (boosting) c.boost -= dt;
   const top = d.top * (off ? d.off : 1) * (boosting ? 1.28 : 1), acc = d.accel * (boosting ? 1.7 : 1);
   if (thr > 0) vf += acc * thr * Math.max(0, 1 - vf / top) * dt;
@@ -30,7 +31,7 @@ function stepCar(c, d, thr, steer, dt, track) {
   c.h += steer * 1.9 * d.steer * clamp(vf / 6, -1, 1) / (1 + Math.abs(vf) / 55) * dt;
   c.x += c.vx * dt; c.z += c.vz * dt;
   // walls: a tree line in the forest, kerbs and buildings in town
-  const n2 = track.nearest(c.x, c.z, c.i); const wall = half + (nr.p.z > 140 ? 4 : 0.9);
+  const n2 = track.nearest(c.x, c.z, c.i); const wall = half + track.wallMargin(nr.p);
   if (Math.abs(n2.lat) > wall) {
     const sg = Math.sign(n2.lat), ex = Math.abs(n2.lat) - wall;
     c.x -= sg * ex * n2.p.nx; c.z -= sg * ex * n2.p.nz;
@@ -45,23 +46,26 @@ function stepCar(c, d, thr, steer, dt, track) {
 export function createRace(scene, track, cb = {}) {
   const R = { track, phase: 'idle', t: 0, count: 0, result: null, boosts: 0, camera: null };
   let pm = null, am = null, flash = null, camH = 0, camReady = false;
-  const P = { c: null, def: null }, A = { c: null, def: ROBO, skill: 0.74, base: 0.74, lane: -2.6 };
+  const hazards = track.level.hazards ? createHazards(scene, track) : null; R.hazards = hazards;
+  const P = { c: null, def: null }, A = { c: null, def: ROBO, skill: 0.74, base: 0.74, lane: -2.6, dodge: 0 };
 
   R.setup = ({ carId, difficulty, points, boosts }) => {
     for (const m of [pm, am]) if (m) scene.remove(m);
     R.def = carById(carId); P.def = R.def; R.difficulty = difficulty; R.strata = strataOf(points);
-    A.base = SKILL[difficulty][R.strata]; A.skill = A.base;
+    A.base = SKILL[difficulty][R.strata]; A.skill = A.base; A.dodge = 0;
     const p0 = track.at(track.startS - 4);
     const place = (lat) => newCar(p0.x + p0.nx * lat, p0.z + p0.nz * lat, p0.hd);
     P.c = place(2.6); A.c = place(-2.6);
     pm = makeCar(carId); scene.add(pm);
     flash = new THREE.MeshBasicMaterial({ color: '#7fe9ff' }); am = makeRoboCar(Math.floor(Math.random() * 3), flash).g; scene.add(am);
-    R.boosts = boosts || 0; R.phase = 'grid'; R.t = 0; R.result = null; camReady = false; R.sync(); R.poseCamera(R.camera, 1);
+    for (const m of [pm, am]) m.rotation.order = 'YXZ';
+    R.boosts = boosts || 0; R.phase = 'grid'; R.t = 0; R.result = null; camReady = false; hazards?.reset(); R.sync(); R.poseCamera(R.camera, 1);
   };
   R.sync = () => {
     for (const [m, c] of [[pm, P.c], [am, A.c]]) {
       if (!m || !c) continue;
-      m.position.set(c.x, 0.04, c.z); m.rotation.y = c.h; m.rotation.z = clamp(c.steer * c.speed * 0.0016, -0.07, 0.07);
+      const p = track.sample(c.s), p2 = track.sample(c.s + 3); c.y = p.y;
+      m.position.set(c.x, p.y + 0.04, c.z); m.rotation.y = c.h; m.rotation.x = -Math.atan2(p2.y - p.y, 3); m.rotation.z = clamp(c.steer * c.speed * 0.0016, -0.07, 0.07);
     }
   };
   R.start = () => { R.phase = 'count'; R.count = 3.2; };
@@ -71,14 +75,30 @@ export function createRace(scene, track, cb = {}) {
   R.boost = () => { if (R.phase !== 'go' || R.boosts <= 0 || P.c.boost > 0) return false; R.boosts--; P.c.boost = BOOST_TIME; return true; };
   R.nearStand = () => (P.c ? track.stands.find((s) => Math.hypot(s.x - P.c.x, s.z - P.c.z) < 18) || null : null);
 
+  // Choose a lateral line that clears slower traffic and deer, plus a speed cap if the way ahead is blocked.
+  function avoid(c, vf) {
+    const pref = A.lane * 0.5, hw = track.half(track.P[Math.max(0, c.i)]), look = 16 + vf * 1.1, lim = hw - 1.8;
+    const clear = (lat) => hazards.obstacles.every((o) => { const ds = o.s - c.s; return ds < -4 || ds > look || Math.abs(o.lat - lat) > o.r + 2.7; });
+    const cands = [0, -4.5, 4.5, -9, 9].map((d) => clamp(pref + d, -lim, lim)).sort((a, b) => Math.abs(a - pref) - Math.abs(b - pref));
+    const lat = cands.find(clear) ?? pref;
+    let cap = 999;
+    for (const o of hazards.obstacles) {
+      const ds = o.s - c.s;
+      if (ds > 0 && ds < 12 + vf * 0.3 && Math.abs(o.lat - c.lat) < o.r + 2.1) cap = Math.min(cap, Math.max(5, Math.hypot(o.vx, o.vz) * 0.9));
+    }
+    return { lat, cap };
+  }
+
   function ai(dt) {
     const c = A.c, vf = c.speed || 0;
     if (c.done || R.phase === 'done') { stepCar(c, A.def, -0.7, 0, dt, track); return; }
     if (R.difficulty === 'normal') { const gap = c.s - P.c.s; A.skill = A.base * (gap > 140 ? 0.88 : gap > 60 ? 0.95 : gap < -60 ? 1.06 : 1); } else A.skill = A.base;
-    const L = 9 + vf * 0.55, t = track.at(c.s + L), tx = t.x + t.nx * A.lane * 0.5, tz = t.z + t.nz * A.lane * 0.5;
+    let aim = A.lane * 0.5, cap = 999;
+    if (hazards) { const a = avoid(c, vf); A.dodge += (a.lat - A.dodge) * Math.min(1, dt * 2.4); aim = A.dodge; cap = a.cap; }
+    const L = 9 + vf * 0.55, t = track.at(c.s + L), tx = t.x + t.nx * aim, tz = t.z + t.nz * aim;
     const steer = clamp(angDiff(c.h, Math.atan2(tx - c.x, tz - c.z)) * 2.4, -1, 1); c.steer = steer;
     const k = track.curvAhead(c.i, vf * 1.6 + 12), vmax = k > 1e-4 ? Math.sqrt((24 * A.skill) / k) : 999;
-    const vt = Math.min(A.def.top * A.skill, vmax);
+    const vt = Math.min(A.def.top * A.skill, vmax, cap);
     stepCar(c, A.def, clamp((vt - vf) * 0.35, -1, 1), steer, dt, track);
     if (c.s >= track.finishS) { c.done = true; A.finishT = R.t; }
   }
@@ -105,6 +125,7 @@ export function createRace(scene, track, cb = {}) {
       if (R.phase === 'go') { c.steer = inp.steer; stepCar(c, P.def, inp.thr, inp.steer, dt, track); }
       else { c.steer = 0; stepCar(c, P.def, -0.6, 0, dt, track); }
       ai(dt); collideCars();
+      if (hazards) { hazards.update(dt, [c, A.c]); hazards.resolve(c, P.def, cb); hazards.resolve(A.c, A.def, cb); }
       if (R.phase === 'go' && c.s >= track.finishS) {
         const aiWon = A.c.done;
         R.phase = 'done'; R.result = { pos: aiWon ? 2 : 1, time: R.t, aiTime: aiWon ? A.finishT : null };
@@ -121,10 +142,10 @@ export function createRace(scene, track, cb = {}) {
     if (!camReady) { camH = c.h; camReady = true; }
     camH += angDiff(camH, c.h) * Math.min(1, dt * 4.5);
     const back = 9.5 * zoom, sp = c.speed || 0;
-    camera.position.set(c.x - Math.sin(camH) * back, 4.3 * zoom + 0.4, c.z - Math.cos(camH) * back);
-    camera.lookAt(c.x + Math.sin(c.h) * 6, 1.6, c.z + Math.cos(c.h) * 6);
+    camera.position.set(c.x - Math.sin(camH) * back, (c.y || 0) + 4.3 * zoom + 0.4, c.z - Math.cos(camH) * back);
+    camera.lookAt(c.x + Math.sin(c.h) * 6, (c.y || 0) + 1.6, c.z + Math.cos(c.h) * 6);
     const fov = 52 + Math.min(18, sp * 0.3) + (c.boost > 0 ? 6 : 0); if (Math.abs(camera.fov - fov) > 0.2) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
   };
-  R.dispose = () => { for (const m of [pm, am]) if (m) scene.remove(m); pm = am = null; };
+  R.dispose = () => { for (const m of [pm, am]) if (m) scene.remove(m); pm = am = null; hazards?.dispose(); };
   return R;
 }

@@ -17,7 +17,26 @@
         { "fromEnd": 110, "side": 1, "kind": "drivethru", "name": "Pier Drive-Thru", "barista": { "name": "Tosh", "bio": "a speedy drive-thru barista who times every driver" } }
       ]
     },
-    { "id": "alpine", "name": "Alpine Pass Descent", "blurb": "Start atop the mountain pass, watch for deer, then the Interstate and the highway bridge over town.", "ready": false },
+    {
+      "id": "alpine", "name": "Alpine Pass Descent", "theme": "highland", "ready": true,
+      "blurb": "Start atop the mountain pass, watch for deer, then merge onto the Interstate through boulder country and finish on the highway bridge over town.",
+      "mapHint": "The road runs from the mountain top (right) down the pass, then along the Interstate west to the highway bridge over town (left).",
+      "waypoints": [[4300,-900,0,150],[3800,-900,70,146],[3800,-500,70,120],[3400,-500,70,100],[3400,-150,80,82],[3000,-150,80,66],[3000,-420,60,40],[2700,-420,60,24],[2700,-142,150,10],[2100,-142,300,5],[1650,-400,300,2],[1200,-400,300,0],[800,-142,300,0],[560,-142,0,0],[330,-142,0,12.15],[-146,-142,0,12.15]],
+      "highwayWp": 8, "widths": [6.2, 9], "viaductFromEnd": 446,
+      "signs": [[3300, "I-9 SOUTH  Harbor Town"], [4300, "Harbor Town 3 mi"], [5100, "Bridge  Pier Exit"]],
+      "stands": [
+        { "s": 900, "side": 1, "kind": "cabin", "name": "Timberline Cabin Coffee", "barista": { "name": "Odette", "bio": "a wool-sweatered mountain host who brews on a woodstove and tracks every deer on the pass" } },
+        { "s": 2000, "side": -1, "kind": "cabin", "name": "Switchback Espresso Hut", "barista": { "name": "Bram", "bio": "a bearded ex-ski-patroller who hands out coffee and weather reports" } },
+        { "s": 3700, "side": 1, "kind": "trailer", "name": "Mile 9 Rest Stop Coffee", "barista": { "name": "Jolene", "bio": "a long-haul-friendly barista who knows every trucker's usual order" } }
+      ],
+      "hazards": {
+        "deer": [500, 780, 1150, 1450, 1700, 2050, 2350, 2600],
+        "traffic": [
+          { "from": 800, "to": 2700, "count": 6, "lanes": [0.5, -0.5], "speed": [13, 19] },
+          { "from": 3000, "to": 5300, "count": 28, "lanes": [-0.75, -0.25, 0.25, 0.75], "speed": [16, 30] }
+        ]
+      }
+    },
     { "id": "desert", "name": "Sunland Canyon Run", "blurb": "A narrow desert valley road through canyons to the faded town of Sunland.", "ready": false }
   ],
   "menu": [
