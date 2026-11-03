@@ -261,10 +261,10 @@ function openStand(stand) {
   const log = []; const r = R(); const b = stand.barista;
   openModal((card) => {
     const chat = h('div', { class: 'chat' }); const inp = h('input', { placeholder: `Say something to ${b.name}…`, style: 'width:100%' });
-    const say = (who, text) => { log.push({ who, text }); chat.append(h('div', { class: 'say' + (who === 'You' ? ' me' : '') }, h('b', {}, who + ': '), text)); chat.scrollTop = chat.scrollHeight; };
+    const say = (who, text, isAi = false) => { log.push({ who, text }); chat.append(h('div', { class: 'say' + (who === 'You' ? ' me' : '') }, h('b', {}, who + ': '), text, isAi ? h('span', { class: 'small', title: 'Written by the AI', style: 'margin-left:6px;opacity:.7' }, '✨AI') : '')); chat.scrollTop = chat.scrollHeight; };
     const reply = async (text) => {
       const ai = await aiText(`You are ${b.name}, ${b.bio}, working at ${stand.name}, a roadside coffee stand in a casual racing game. Be warm and funny. Reply in 1-2 short sentences, no stage directions.`, log.map((l) => ({ role: l.who === 'You' ? 'user' : 'assistant', content: l.text })).slice(-8));
-      say(b.name, ai ? ai.replace(/\s+/g, ' ').slice(0, 280) : pick(BARISTA_LINES));
+      say(b.name, ai ? ai.replace(/\s+/g, ' ').slice(0, 280) : pick(BARISTA_LINES), !!ai);
     };
     const send = (t) => { if (!t) return; inp.value = ''; say('You', t); reply(t); };
     const wallet = h('div', { class: 'small' }, '');

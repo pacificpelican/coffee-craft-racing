@@ -88,6 +88,29 @@ export function buildTrack(scene, level) {
   const dinerX = dinerPath.x + dinerPath.nx * (halfWidth(dinerPath.z) + 21);
   const dinerZ = dinerPath.z + dinerPath.nz * (halfWidth(dinerPath.z) + 21);
 
+  // Ponds beside the road in the first half of the course; trees keep clear of them.
+  const ponds = [];
+  [[420, -1, 13], [1150, 1, 17], [1800, -1, 15], [2230, 1, 12]].forEach(([s, side, r]) => {
+    if (s > length * 0.55) return;
+    const p = at(s);
+    let off = halfWidth(p.z) + r + 12, px, pz, clear = false;
+    for (let tries = 0; tries < 8 && !clear; tries++, off += 6) {
+      px = p.x + p.nx * side * off; pz = p.z + p.nz * side * off; clear = true;
+      for (let j = 0; j < P.length; j += 2) if (Math.abs(P[j].x - px) < r + 30 && Math.abs(P[j].z - pz) < r + 30 && Math.hypot(P[j].x - px, P[j].z - pz) < r + halfWidth(P[j].z) + 8) { clear = false; break; }
+    }
+    ponds.push({ x: px, z: pz, r, sx: 1.25, side });
+  });
+  const waterMat = new THREE.MeshLambertMaterial({ color: '#3f7f95' }), mudMat = new THREE.MeshLambertMaterial({ color: '#6b5d43' });
+  for (const pd of ponds) {
+    const mud = new THREE.Mesh(new THREE.CircleGeometry(pd.r * 1.12, 28), mudMat), water = new THREE.Mesh(new THREE.CircleGeometry(pd.r, 28), waterMat);
+    for (const [m, y, k] of [[mud, 0.04, 1.12], [water, 0.07, 1]]) { m.rotation.x = -Math.PI / 2; m.position.set(pd.x, y, pd.z); m.scale.set(pd.sx, 1, 1); group.add(m); }
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + pd.r, rr = pd.r * 1.12 + 0.4;
+      const reed = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.6, 4), mat('#8a7a3c')); reed.position.set(pd.x + Math.cos(a) * rr * pd.sx, 0.8, pd.z + Math.sin(a) * rr); group.add(reed);
+    }
+  }
+  track.ponds = ponds;
+
   // conifers: instanced in chunks so far-away stands of trees are culled
   const rnd = mulberry(1234); const CHUNK = 300; const cone = new THREE.ConeGeometry(2.6, 9, 6); cone.translate(0, 6.5, 0);
   const broadCone = new THREE.ConeGeometry(3.5, 7.5, 7); broadCone.translate(0, 5.5, 0);
@@ -104,7 +127,7 @@ export function buildTrack(scene, level) {
         for (let t = 0; t < k; t++) {
           const lat = side * (halfWidth(p.z) + 7 + rnd() * (t ? 40 : 18)); const x = p.x + p.nx * lat + (rnd() - 0.5) * 3, z = p.z + p.nz * lat + (rnd() - 0.5) * 3;
           const dinerClearing = Math.abs(p.s - dinerS) < 140 && side === dinerSide && Math.abs(lat) < 56;
-          let ok = !dinerClearing && Math.hypot(x - dinerX, z - dinerZ) > 30;
+          let ok = !dinerClearing && ponds.every((pd) => Math.hypot((x - pd.x) / pd.sx, z - pd.z) > pd.r * 1.12 + 3) && Math.hypot(x - dinerX, z - dinerZ) > 30;
           for (let j = Math.max(0, i - 90); ok && j < Math.min(P.length, i + 90); j += 3) { if (Math.abs(P[j].x - x) < 14 && Math.abs(P[j].z - z) < 14 && Math.hypot(P[j].x - x, P[j].z - z) < halfWidth(P[j].z) + 6) { ok = false; break; } }
           if (ok) items.push([x, z, 0.8 + rnd() * 1.1, rnd(), rnd() < 0.32]);
         }
@@ -133,8 +156,46 @@ export function buildTrack(scene, level) {
     animal.scale.setScalar(0.95); group.add(animal);
     track.wildlife.push({ mesh: animal, s, side, phase: i * 1.73 });
   });
+  // Pelicans: a pair wades at each pond, a few circle overhead, and pigeons peck about the woods.
+  const waders = [], flyers = [], hoppers = [];
+  ponds.forEach((pd, i) => {
+    for (let k = 0; k < 2; k++) {
+      const bird = makeAnimal('pelican'); bird.scale.setScalar(1.3); bird.userData.wings.forEach((w) => { w.rotation.z = 0; w.visible = false; });
+      group.add(bird); waders.push({ mesh: bird, pd, a: i * 2 + k * 3.1, w: 0.08 + k * 0.03 });
+    }
+    const f = makeAnimal('pelican'); f.scale.setScalar(2); group.add(f);
+    flyers.push({ mesh: f, cx: pd.x, cz: pd.z, r: 35 + i * 6, y: 20 + i * 2, w: (i % 2 ? -1 : 1) * 0.22, a: i * 1.9 });
+  });
+  [700, 1500, 2050].forEach((s, i) => {
+    if (s > length * 0.55) return;
+    const p = at(s), f = makeAnimal('pelican'); f.scale.setScalar(2); group.add(f);
+    flyers.push({ mesh: f, cx: p.x, cz: p.z, r: 55, y: 24 + i * 3, w: 0.18, a: i * 2.3 });
+  });
+  [260, 800, 1350, 1950].forEach((s, i) => {
+    if (s > length * 0.55) return;
+    const p = at(s), side = i % 2 ? 1 : -1, bird = makeAnimal(i % 2 ? 'gull' : 'pigeon'); bird.scale.setScalar(1.4); group.add(bird);
+    hoppers.push({ mesh: bird, s, side, phase: i * 2.1 });
+  });
   track.update = (dt) => {
     track.time = (track.time || 0) + dt;
+    const T = track.time;
+    for (const b of waders) {
+      b.a += b.w * dt; const pd = b.pd, rr = pd.r * 1.2;
+      b.mesh.position.set(pd.x + Math.cos(b.a) * rr * pd.sx, 0.05, pd.z + Math.sin(b.a) * rr);
+      b.mesh.rotation.y = Math.atan2(-Math.sin(b.a) * pd.sx * Math.sign(b.w), Math.cos(b.a) * Math.sign(b.w));
+    }
+    for (const f of flyers) {
+      f.a += f.w * dt;
+      f.mesh.position.set(f.cx + Math.cos(f.a) * f.r, f.y + Math.sin(T * 0.7 + f.a) * 1.2, f.cz + Math.sin(f.a) * f.r);
+      f.mesh.rotation.y = Math.atan2(-Math.sin(f.a) * Math.sign(f.w), Math.cos(f.a) * Math.sign(f.w));
+      const flap = Math.sin(T * 5 + f.a * 3) * 0.45;
+      f.mesh.userData.wings.forEach((w, k) => { w.rotation.z = (k ? -1 : 1) * flap; });
+    }
+    for (const h of hoppers) {
+      const p = at(h.s + Math.sin(T * 0.4 + h.phase) * 4), lat = h.side * (halfWidth(p.z) + 6 + Math.sin(T * 0.6 + h.phase));
+      h.mesh.position.set(p.x + p.nx * lat, Math.max(0, Math.sin(T * 7 + h.phase)) * 0.08, p.z + p.nz * lat);
+      h.mesh.rotation.y = p.hd + Math.sin(T * 0.5 + h.phase) * 0.8;
+    }
     for (const a of track.wildlife) {
       const p = at(a.s + Math.sin(track.time * 0.32 + a.phase) * 5);
       const lat = a.side * (halfWidth(p.z) + 8.5 + Math.sin(track.time * 0.55 + a.phase) * 1.2);
