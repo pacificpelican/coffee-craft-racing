@@ -24,7 +24,7 @@ function stepCar(c, d, thr, steer, dt, track) {
   else if (thr < 0) { if (vf > 0.5) vf = Math.max(0, vf - 34 * -thr * dt); else vf = Math.max(-10, vf + acc * thr * 0.6 * dt); }
   else vf -= Math.sign(vf) * Math.min(Math.abs(vf), 2.2 * dt);
   if (vf > top) vf -= (vf - top) * 1.6 * dt;
-  vf -= vf * 0.1 * dt;
+  if (thr <= 0) vf -= vf * 0.1 * dt; // drag only when off the gas, so full throttle actually reaches the listed top speed
   let grip = d.grip; if (d.rwd && thr > 0.5 && Math.abs(steer) > 0.2 && vf > 12) grip *= 0.5;
   vl *= Math.exp(-grip * dt);
   c.vx = sn * vf + cs * vl; c.vz = cs * vf - sn * vl;

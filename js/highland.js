@@ -1,7 +1,7 @@
 // Level 2 scenery: a descending alpine pass, an interstate through boulder country, then the highway bridge above town.
 // The road carries real heights (P[i].y); the ground is a heightfield generated around it.
 import * as THREE from '../vendor/three.module.min.js';
-import { mat } from './actors.js';
+import { mat, makeAnimal } from './actors.js';
 import { mulberry, clamp } from './util.js';
 import { buildCenterline, attachQueries, addGates, addStands, bannerTexture, DS } from './track.js';
 
@@ -196,6 +196,24 @@ export function buildHighland(scene, level) {
     const sign = new THREE.Mesh(new THREE.BoxGeometry(w * 1.5, w * 1.5 / 5.33, 0.25), new THREE.MeshBasicMaterial({ map: bannerTexture(text, '#1f6b3a') })); sign.position.set(0, 9.9, 0); g.add(sign);
     g.position.set(p.x, p.y, p.z); g.rotation.y = Math.atan2(-p.nz, p.nx); group.add(g);
   });
+
+  // Raccoons wander the shoulders beyond the guardrail
+  [300, 640, 1000, 1330, 1850, 2250, 2900, 3500].forEach((s, i) => {
+    const m = makeAnimal('raccoon'); m.scale.setScalar(0.95); group.add(m);
+    track.wildlife.push({ mesh: m, s, side: i % 2 ? -1 : 1, phase: i * 1.73 });
+  });
+  track.time = 0;
+  track.update = (dt) => {
+    track.time += dt;
+    for (const a of track.wildlife) {
+      const p = track.at(a.s + Math.sin(track.time * 0.32 + a.phase) * 5);
+      const lat = a.side * (p.hw + 6.5 + Math.sin(track.time * 0.55 + a.phase) * 1.2);
+      const x = p.x + p.nx * lat, z = p.z + p.nz * lat;
+      a.mesh.position.set(x, track.groundAt(x, z) ?? p.y, z);
+      a.mesh.rotation.y = p.hd + Math.sin(track.time * 0.4 + a.phase) * 0.22;
+    }
+  };
+  track.update(0);
 
   addGates(track, group, hw);
   addStands(track, group, hw, () => 6.5);
