@@ -10,7 +10,7 @@ import { BOOKS } from './books.js';
 import { mountHoops } from './hoops.js';
 
 const APPS = [
-  ['settings', '⚙️', 'Settings'], ['menus', '🍜', 'Menus'], ['irl', '☕', 'IRL Coffee'], ['news', '📰', 'News'],
+  ['settings', '⚙️', 'Settings'], ['irl', '☕', 'IRL Coffee'], ['news', '📰', 'News'],
   ['chat', '💬', 'Chat'], ['music', '🎵', 'Music'], ['pickle', '🏓', 'Pickleball'], ['map', '🗺️', 'Map'], ['guru', '☕', 'Coffee Guru'], ['alta', '🎬', 'Alta Redwood'], ['books', '📚', 'Books'], ['hoops', '🏀', 'Hoops'], ['ask', '🤖', 'Ask AI'], ['store', '⬇️', 'App Downloader'],
 ];
 const TABS = ['Account', 'Stats', 'Diary', 'Purchases', 'Bank', 'Business', 'Roasts', 'TOWS', 'Controls', 'Debug', 'Credits', 'Terms', 'Privacy'];
@@ -42,7 +42,7 @@ export function createPhone(G) {
       screen.append(h('h3', { class: 'ph-title' }, h('span', { class: 'ph-logo', html: LOGO_SVG }), 'Phone'), h('div', { class: 'apps' }, ...APPS.map(([id, ic, nm]) => h('div', { class: 'app', onclick: () => { app = id; render(); } }, h('span', {}, ic), nm))));
     } else {
       screen.append(h('button', { class: 'btn alt', onclick: () => { app = null; render(); } }, '← Home'));
-      ({ settings, menus, irl: irlApp, news, chat, music, pickle, map: mapApp, guru, alta: altaApp, books: booksApp, hoops: (el) => mountHoops(el, G), ask, store })[app](screen);
+      ({ settings, irl: irlApp, news, chat, music, pickle, map: mapApp, guru, alta: altaApp, books: booksApp, hoops: (el) => mountHoops(el, G), ask, store })[app](screen);
     }
     root.replaceChildren(
       h('div', { class: 'bar' }, h('span', { class: 'ph-clock' }, `Day ${s.day} · ${fmtClock(s.minutes)}`), h('span', { class: 'ph-weather' }, s.weather || 'cloudy'),
@@ -407,13 +407,6 @@ export function createPhone(G) {
   }
 
   // ------------------------------------------------------------ Other apps
-  function menus(el) {
-    el.append(h('h3', {}, 'Nearby menus'));
-    for (const b of Object.values(S().businesses).filter((x) => ['coffee', 'restaurant', 'donut', 'pub'].includes(x.type) && x.state === 'open')) {
-      const items = G.menuFor(b); if (!items.length) continue;
-      el.append(h('div', { class: 'bizcard' }, h('h4', {}, b.name), ...items.map((i) => h('div', { class: 'kv' }, h('span', {}, i[0]), h('span', {}, money(G.price(b, i[1])))))));
-    }
-  }
   async function irlApp(el) {
     el.append(h('h3', {}, '☕ IRL Coffee'), h('p', { class: 'small' }, 'Find a real coffee shop to visit or order from.'));
     const city = h('input', { placeholder: 'your city or neighborhood', value: localStorage.getItem('coffeecraft.city') || '' });

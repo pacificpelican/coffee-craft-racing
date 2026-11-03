@@ -1,8 +1,9 @@
 // Race track: a smooth centre line sampled every few units, plus the road ribbon, forest, trees, stands and gates.
 import * as THREE from '../vendor/three.module.min.js';
 import { mat } from './actors.js';
-import { makeHuman } from './actors.js';
+import { makeHuman, makeAnimal } from './actors.js';
 import { mulberry } from './util.js';
+import { PIER } from './pier.js';
 
 const DS = 3;
 export const FOREST_Z = 135; // south of this the course is the town's own streets
@@ -44,7 +45,7 @@ export function buildCenterline(wps) {
 
 export function buildTrack(scene, level) {
   const P = buildCenterline(level.waypoints); const length = P[P.length - 1].s;
-  const track = { P, length, level, half: halfWidth, stands: [], dispose: [] };
+  const track = { P, length, level, half: halfWidth, stands: [], wildlife: [], dispose: [] };
   const group = new THREE.Group(); scene.add(group); track.group = group;
   const at = (s) => P[Math.max(0, Math.min(P.length - 1, Math.round(s / DS)))];
   track.at = at;
@@ -81,8 +82,16 @@ export function buildTrack(scene, level) {
   const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); rg.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); rg.setIndex(idx); rg.computeVertexNormals();
   const ribbon = new THREE.Mesh(rg, new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide })); ribbon.frustumCulled = false; group.add(ribbon);
 
+  const bannerTex = (text, bg) => { const c = document.createElement('canvas'); c.width = 512; c.height = 96; const g = c.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, 512, 96); if (bg === '#fff') { g.fillStyle = '#111'; for (let y = 0; y < 96; y += 24) for (let x = (y / 24) % 2 * 24; x < 512; x += 48) g.fillRect(x, y, 24, 24); } g.fillStyle = bg === '#fff' ? '#d9772b' : '#fff6dc'; g.font = 'bold 48px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.strokeStyle = '#111'; g.lineWidth = 6; if (text) { g.strokeText(text, 256, 50); g.fillText(text, 256, 50); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const dinerS = Math.min(2520, Math.max(850, length * 0.48));
+  const dinerPath = at(dinerS), dinerSide = 1;
+  const dinerX = dinerPath.x + dinerPath.nx * (halfWidth(dinerPath.z) + 21);
+  const dinerZ = dinerPath.z + dinerPath.nz * (halfWidth(dinerPath.z) + 21);
+
   // conifers: instanced in chunks so far-away stands of trees are culled
-  const rnd = mulberry(1234); const CHUNK = 300; const cone = new THREE.ConeGeometry(2.6, 9, 6); cone.translate(0, 6.5, 0); const trunk = new THREE.CylinderGeometry(0.35, 0.5, 2.2, 5); trunk.translate(0, 1.1, 0);
+  const rnd = mulberry(1234); const CHUNK = 300; const cone = new THREE.ConeGeometry(2.6, 9, 6); cone.translate(0, 6.5, 0);
+  const broadCone = new THREE.ConeGeometry(3.5, 7.5, 7); broadCone.translate(0, 5.5, 0);
+  const trunk = new THREE.CylinderGeometry(0.35, 0.5, 2.2, 5); trunk.translate(0, 1.1, 0);
   const fm = new THREE.MeshLambertMaterial({ flatShading: true }), tm = new THREE.MeshLambertMaterial({ color: '#5a4430', flatShading: true });
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), col = new THREE.Color();
   const treeEnd = forestEnd < 0 ? P.length : forestEnd - 8;
@@ -94,22 +103,91 @@ export function buildTrack(scene, level) {
         const k = rnd() < 0.15 ? 2 : 1;
         for (let t = 0; t < k; t++) {
           const lat = side * (halfWidth(p.z) + 7 + rnd() * (t ? 40 : 18)); const x = p.x + p.nx * lat + (rnd() - 0.5) * 3, z = p.z + p.nz * lat + (rnd() - 0.5) * 3;
-          let ok = true; for (let j = Math.max(0, i - 90); j < Math.min(P.length, i + 90); j += 3) { if (Math.abs(P[j].x - x) < 14 && Math.abs(P[j].z - z) < 14 && Math.hypot(P[j].x - x, P[j].z - z) < halfWidth(P[j].z) + 6) { ok = false; break; } }
-          if (ok) items.push([x, z, 0.8 + rnd() * 1.1, rnd()]);
+          const dinerClearing = Math.abs(p.s - dinerS) < 140 && side === dinerSide && Math.abs(lat) < 56;
+          let ok = !dinerClearing && Math.hypot(x - dinerX, z - dinerZ) > 30;
+          for (let j = Math.max(0, i - 90); ok && j < Math.min(P.length, i + 90); j += 3) { if (Math.abs(P[j].x - x) < 14 && Math.abs(P[j].z - z) < 14 && Math.hypot(P[j].x - x, P[j].z - z) < halfWidth(P[j].z) + 6) { ok = false; break; } }
+          if (ok) items.push([x, z, 0.8 + rnd() * 1.1, rnd(), rnd() < 0.32]);
         }
       }
     }
     if (!items.length) continue;
-    const fo = new THREE.InstancedMesh(cone, fm, items.length), tr = new THREE.InstancedMesh(trunk, tm, items.length);
-    items.forEach(([x, z, s, r], i) => {
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), r * 6); sc.set(s, s * (0.9 + r * 0.4), s); ps.set(x, 0, z); m4.compose(ps, q, sc); fo.setMatrixAt(i, m4); tr.setMatrixAt(i, m4);
-      fo.setColorAt(i, col.setHSL(0.31 + r * 0.04, 0.4 + r * 0.15, 0.2 + r * 0.1));
-    });
-    fo.computeBoundingSphere(); tr.computeBoundingSphere(); group.add(fo, tr);
+    const makeTreeBatch = (batch, geometry) => {
+      if (!batch.length) return null;
+      const foliage = new THREE.InstancedMesh(geometry, fm, batch.length), wood = new THREE.InstancedMesh(trunk, tm, batch.length);
+      batch.forEach(([x, z, s, r], i) => {
+        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), r * 6); sc.set(s, s * (0.9 + r * 0.4), s); ps.set(x, 0, z); m4.compose(ps, q, sc);
+        foliage.setMatrixAt(i, m4); wood.setMatrixAt(i, m4);
+        foliage.setColorAt(i, col.setHSL(0.31 + r * 0.04, 0.4 + r * 0.15, 0.2 + r * 0.1));
+      });
+      foliage.computeBoundingSphere(); wood.computeBoundingSphere(); group.add(foliage, wood);
+      return foliage;
+    };
+    const broad = items.filter((item) => item[4]), classic = items.filter((item) => !item[4]);
+    makeTreeBatch(classic, cone); makeTreeBatch(broad, broadCone);
   }
 
+  // A few curious raccoons wander among the trees, well clear of the road.
+  const wildlifeS = [520, 960, 1260, 2250, 2770, 3800].filter((s) => s < (forestEnd < 0 ? length : P[Math.max(0, forestEnd - 8)].s));
+  wildlifeS.forEach((s, i) => {
+    const p = at(s), side = i % 2 ? -1 : 1, animal = makeAnimal('raccoon');
+    animal.scale.setScalar(0.95); group.add(animal);
+    track.wildlife.push({ mesh: animal, s, side, phase: i * 1.73 });
+  });
+  track.update = (dt) => {
+    track.time = (track.time || 0) + dt;
+    for (const a of track.wildlife) {
+      const p = at(a.s + Math.sin(track.time * 0.32 + a.phase) * 5);
+      const lat = a.side * (halfWidth(p.z) + 8.5 + Math.sin(track.time * 0.55 + a.phase) * 1.2);
+      a.mesh.position.set(p.x + p.nx * lat, 0, p.z + p.nz * lat);
+      a.mesh.rotation.y = p.hd + Math.sin(track.time * 0.4 + a.phase) * 0.22;
+    }
+  };
+  track.update(0);
+
+  // A weather-beaten diner gives the long forest highway a recognizable landmark.
+  const diner = new THREE.Group();
+  diner.position.set(dinerX, 0, dinerZ);
+  diner.rotation.y = Math.atan2(-dinerSide * dinerPath.nx, -dinerSide * dinerPath.nz);
+  const dinerBox = (w, h, d, color, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); diner.add(m); };
+  dinerBox(13, 3.8, 8, '#8a7863', 0, 1.9, 0);
+  dinerBox(13.8, 0.5, 8.8, '#3f4540', 0, 4.05, 0);
+  dinerBox(11, 0.35, 0.2, '#a63e2b', 0, 4.5, 3.95);
+  const dinerSign = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 1.2), new THREE.MeshBasicMaterial({ map: bannerTex('CLOSED · DINER', '#3a3028'), side: THREE.DoubleSide }));
+  dinerSign.position.set(0, 5.3, 4.05); diner.add(dinerSign);
+  dinerBox(3.4, 2.2, 0.16, '#363532', -3.2, 2.2, 4.08);
+  dinerBox(3.4, 2.2, 0.16, '#363532', 3.2, 2.2, 4.08);
+  for (const x of [-4.1, -3.15, -2.2, 2.2, 3.15, 4.1]) dinerBox(0.14, 2.5, 0.2, '#5a4b3b', x, 2.2, 4.18);
+  dinerBox(1.7, 1.1, 1.2, '#8a8f8c', -8.2, 0.55, 1);
+  dinerBox(1.7, 1.1, 1.2, '#8a8f8c', 8.2, 0.55, 1);
+  group.add(diner);
+
+  // Candle-like route markers keep the course legible once it reaches town.
+  const candleBase = new THREE.CylinderGeometry(0.28, 0.38, 0.45, 8);
+  const candleWax = new THREE.CylinderGeometry(0.16, 0.18, 0.72, 8);
+  const candleFlame = new THREE.ConeGeometry(0.13, 0.38, 6);
+  const stoneMat = mat('#62645c'), waxMat = mat('#f3e5c4'), flameMat = new THREE.MeshBasicMaterial({ color: '#ffb347' });
+  const candles = [];
+  const townStart = forestEnd < 0 ? 0 : forestEnd + 12;
+  for (let i = townStart;   i < P.length - 6; i += 9) {
+    const p = P[i], w = halfWidth(p.z) + 3;
+    for (const side of [-1, 1]) {
+        const cx = p.x + p.nx * side * w, cz = p.z + p.nz * side * w;
+        const onPier = cx < PIER.x0 && cx > PIER.x1 && cz > PIER.z0 && cz < PIER.z1;
+        candles.push([cx, cz, onPier ? PIER.deck : 0]);
+      }
+    }
+  const candleBases = new THREE.InstancedMesh(candleBase, stoneMat, candles.length);
+  const candleWaxes = new THREE.InstancedMesh(candleWax, waxMat, candles.length);
+  const candleFlames = new THREE.InstancedMesh(candleFlame, flameMat, candles.length);
+  candles.forEach(([x, z, y], i) => {
+    m4.makeTranslation(x, y + 0.225, z); candleBases.setMatrixAt(i, m4);
+    m4.makeTranslation(x, y + 0.55, z); candleWaxes.setMatrixAt(i, m4);
+    m4.makeTranslation(x, y + 1.1, z); candleFlames.setMatrixAt(i, m4);
+  });
+  candleBases.computeBoundingSphere(); candleWaxes.computeBoundingSphere(); candleFlames.computeBoundingSphere();
+  group.add(candleBases, candleWaxes, candleFlames);
+
   // gates
-  const bannerTex = (text, bg) => { const c = document.createElement('canvas'); c.width = 512; c.height = 96; const g = c.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, 512, 96); if (bg === '#fff') { g.fillStyle = '#111'; for (let y = 0; y < 96; y += 24) for (let x = (y / 24) % 2 * 24; x < 512; x += 48) g.fillRect(x, y, 24, 24); } g.fillStyle = bg === '#fff' ? '#d9772b' : '#fff6dc'; g.font = 'bold 48px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.strokeStyle = '#111'; g.lineWidth = 6; if (text) { g.strokeText(text, 256, 50); g.fillText(text, 256, 50); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
   const gate = (s, text, bg) => {
     const p = at(s), w = halfWidth(p.z) + 1.2; const g = new THREE.Group();
     for (const side of [-1, 1]) { const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7, 0.5), mat('#2b2f2a')); pole.position.set(side * w, 3.5, 0); g.add(pole); }

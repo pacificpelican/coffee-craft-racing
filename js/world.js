@@ -86,8 +86,14 @@ export function buildWorld(scene, defList) {
     }
     // block-corner street trees and lamps
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      lamp(bx + sx * 24.4, bz + sz * 24.4);
-      tree(bx + sx * 24.4, bz + sz * 12 * (rnd() < 0.5 ? 1 : -1), 0.9 + rnd() * 0.5);
+      const lx = bx + sx * 24.4, lz = bz + sz * 24.4;
+      lamp(lx, lz);
+      const tx = bx + sx * 24.4, tz = bz + sz * 12 * (rnd() < 0.5 ? 1 : -1);
+      const blocksRaceLane = (Math.abs(tx - 62) < 9 && tz >= -70 && tz <= 140)
+        || (Math.abs(tz + 62) < 9 && tx >= -70 && tx <= 70)
+        || (Math.abs(tx + 62) < 9 && tz >= -70 && tz <= 70)
+        || (Math.abs(tz - 58) < 9 && tx >= -180 && tx <= -62);
+      if (!blocksRaceLane) tree(tx, tz, 0.9 + rnd() * 0.5);
     }
   }
 
@@ -557,16 +563,16 @@ export function buildWorld(scene, defList) {
     const x = -62, z = -31;
     const g = new THREE.Group(); g.position.set(x, 0, z); add(g);
     for (const s of [-1, 1]) {
-      g.add(box(1.6, 8, 1.6, '#b8532a', s * 7.5, 4, 0)); g.add(box(2.2, 0.6, 2.2, '#4f6b3a', s * 7.5, 0.4, 0)); g.add(box(2.2, 0.6, 2.2, '#4f6b3a', s * 7.5, 8.1, 0));
-      solid(x + s * 7.5 - 1, x + s * 7.5 + 1, z - 1, z + 1);
-      const lion = box(1.4, 1.2, 1.6, '#c9a45a', s * 7.5, 1.2, 2); g.add(lion);
+      g.add(box(1.6, 8, 1.6, '#b8532a', s * 11.5, 4, 0)); g.add(box(2.2, 0.6, 2.2, '#4f6b3a', s * 11.5, 0.4, 0)); g.add(box(2.2, 0.6, 2.2, '#4f6b3a', s * 11.5, 8.1, 0));
+      solid(x + s * 11.5 - 1, x + s * 11.5 + 1, z - 1, z + 1);
+      const lion = box(1.4, 1.2, 1.6, '#c9a45a', s * 11.5, 1.2, 2); g.add(lion);
     }
-    g.add(box(17.6, 1.2, 1.8, '#b8532a', 0, 8.2, 0));
+    g.add(box(25.6, 1.2, 1.8, '#b8532a', 0, 8.2, 0));
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(10, 2.2), new THREE.MeshBasicMaterial({ map: canvasTex(256, 56, (c, w, h) => { c.fillStyle = '#2f5a3a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#e3b93c'; c.lineWidth = 3; c.strokeRect(3, 3, w - 6, h - 6); c.fillStyle = '#e3b93c'; let fs = 30; c.font = `bold ${fs}px serif`; while (c.measureText('唐人街 · CHINATOWN').width > w - 24 && fs > 12) { fs -= 1; c.font = `bold ${fs}px serif`; } c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('唐人街 · CHINATOWN', w / 2, h / 2 + 2); }, THREE), side: THREE.DoubleSide }));
     sign.position.set(0, 9.6, 0); g.add(sign);
     for (let k = 0; k < 3; k++) {
-      const tier = box(20 - k * 4, 0.5, 3 - k * 0.4, '#4f6b3a', 0, 10.5 + k * 0.7 + 0.5, 0); g.add(tier);
-      const edge = box(21 - k * 4, 0.25, 3.4 - k * 0.4, '#e3b93c', 0, 10.2 + k * 0.7 + 0.5, 0); g.add(edge);
+      const tier = box(28 - k * 4, 0.5, 3 - k * 0.4, '#4f6b3a', 0, 10.5 + k * 0.7 + 0.5, 0); g.add(tier);
+      const edge = box(29 - k * 4, 0.25, 3.4 - k * 0.4, '#e3b93c', 0, 10.2 + k * 0.7 + 0.5, 0); g.add(edge);
     }
     g.add(box(0.5, 1.2, 0.5, '#e3b93c', 0, 13.3, 0));
     for (const s of [-1, 1]) { const ln = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 6), basic('#d9772b')); ln.position.set(s * 4, 7.3, 0.9); g.add(ln); world.lamps.push(ln); }
