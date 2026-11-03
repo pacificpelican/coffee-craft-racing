@@ -9,6 +9,7 @@ import * as eco from './economy.js';
 import { buildWorld } from './world.js';
 import { buildEnvironment } from './traffic.js';
 import { createPhone } from './phone.js';
+import { cbContext, nextCbMessage } from './cb.js';
 import { buildTrack } from './track.js';
 import { buildHighland } from './highland.js';
 import { buildIslands } from './islands.js';
@@ -135,6 +136,19 @@ async function aiNews() {
   const recent = state.news.slice(-4).map((n) => n.text).join(' ');
   const t = await aiText('You write one-sentence, playful, local-news items for a small racing town by the sea. No real people.', [{ role: 'user', content: `Day ${state.day}, ${state.weather}. Recent: ${recent}. Write one new short story.` }]);
   if (t) { state.news.push({ day: state.day, text: t.slice(0, 240) }); notify('📰 ' + t.slice(0, 90), { kind: 'news', onclick: () => phone.open('news') }); }
+}
+
+let cbT = 20, cbBusy = false;
+async function cbPost() {
+  if (cbBusy) return;
+  cbBusy = true;
+  try {
+    const log = (state.cb ||= []);
+    const m = await nextCbMessage(cbContext(G, track, race), log.slice(-4));
+    log.push({ handle: m.handle, text: m.text, ai: m.ai }); if (log.length > 60) log.shift();
+    if (!state.cbQuiet) notify(`📻 ${m.handle}: ${m.text.slice(0, 80)}`, { sound: false, ms: 4500, onclick: () => phone.open('cb') });
+    if (phone.isOpen()) phone.render();
+  } finally { cbBusy = false; }
 }
 
 // ----------------------------------------------------------- save / load (browser storage; the PHP server is optional)
@@ -348,6 +362,7 @@ function tick(dt) {
   if (!modalOpen) { race.update(dt, drive); race.poseCamera(camera, dt); }
   prompt_(near ? (c.speed < 12 ? `☕ Pull into ${near.name}` : `☕ ${near.name} — slow down to stop`) : '');
   updateHud();
+  cbT -= dt; if (cbT <= 0 && race.phase === 'go') { cbT = 45 + Math.random() * 60; cbPost(); }
   saveT += dt; if (saveT > 45) { saveT = 0; saveLocal(); }
 }
 

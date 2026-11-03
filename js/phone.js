@@ -11,7 +11,7 @@ import { mountHoops } from './hoops.js';
 
 const APPS = [
   ['settings', '⚙️', 'Settings'], ['irl', '☕', 'IRL Coffee'], ['news', '📰', 'News'],
-  ['chat', '💬', 'Chat'], ['music', '🎵', 'Music'], ['pickle', '🏓', 'Pickleball'], ['map', '🗺️', 'Map'], ['guru', '☕', 'Coffee Guru'], ['alta', '🎬', 'Alta Redwood'], ['books', '📚', 'Books'], ['hoops', '🏀', 'Hoops'], ['ask', '🤖', 'Ask AI'], ['store', '⬇️', 'App Downloader'],
+  ['chat', '💬', 'Chat'], ['music', '🎵', 'Music'], ['pickle', '🏓', 'Pickleball'], ['map', '🗺️', 'Map'], ['guru', '☕', 'Coffee Guru'], ['alta', '🎬', 'Alta Redwood'], ['books', '📚', 'Books'], ['hoops', '🏀', 'Hoops'], ['cb', '📻', 'CB Radio'], ['ask', '🤖', 'Ask AI'], ['store', '⬇️', 'App Downloader'],
 ];
 const TABS = ['Account', 'Stats', 'Diary', 'Purchases', 'Bank', 'Business', 'Roasts', 'TOWS', 'Controls', 'Debug', 'Credits', 'Terms', 'Privacy'];
 
@@ -42,7 +42,7 @@ export function createPhone(G) {
       screen.append(h('h3', { class: 'ph-title' }, h('span', { class: 'ph-logo', html: LOGO_SVG }), 'Phone'), h('div', { class: 'apps' }, ...APPS.map(([id, ic, nm]) => h('div', { class: 'app', onclick: () => { app = id; render(); } }, h('span', {}, ic), nm))));
     } else {
       screen.append(h('button', { class: 'btn alt', onclick: () => { app = null; render(); } }, '← Home'));
-      ({ settings, irl: irlApp, news, chat, music, pickle, map: mapApp, guru, alta: altaApp, books: booksApp, hoops: (el) => mountHoops(el, G), ask, store })[app](screen);
+      ({ settings, irl: irlApp, news, chat, music, pickle, map: mapApp, guru, alta: altaApp, books: booksApp, hoops: (el) => mountHoops(el, G), cb: cbApp, ask, store })[app](screen);
     }
     root.replaceChildren(
       h('div', { class: 'bar' }, h('span', { class: 'ph-clock' }, `Day ${s.day} · ${fmtClock(s.minutes)}`), h('span', { class: 'ph-weather' }, s.weather || 'cloudy'),
@@ -449,6 +449,13 @@ export function createPhone(G) {
     el.append(h('h3', {}, '💬 Chat'));
     if (!s.contacts.length) el.append(h('p', {}, 'No contacts yet. After a good conversation someone might offer to swap numbers.'));
     for (const c of s.contacts) el.append(h('div', { class: 'bizcard', style: 'margin:6px 0;cursor:pointer', onclick: () => { chatWith = c; render(); } }, h('b', {}, c, prefs[c] === 'muted' ? ' 🔕' : prefs[c] === 'blocked' ? ' 🚫' : ''), ' ', h('span', { class: 'small' }, (s.chats[c] || []).slice(-1)[0]?.text?.slice(0, 40) || ''), h('div', { class: 'row' }, muteBtn(c), blockBtn(c))));
+  }
+  function cbApp(el) {
+    const s = S(), log = (s.cb ||= []);
+    el.append(h('h3', {}, '📻 CB Radio'), h('p', { class: 'small' }, 'Channel 19: truckers, drivers and coffee fans on the road. Messages arrive while you drive.'),
+      h('div', { class: 'row' }, h('button', { class: 'btn alt', onclick: () => { s.cbQuiet = !s.cbQuiet; render(); } }, s.cbQuiet ? '🔔 Alerts on' : '🔕 Silence alerts')));
+    if (!log.length) el.append(h('p', {}, 'Static… nothing yet. Keep driving.'));
+    for (const m of log.slice(-40).reverse()) el.append(h('div', { class: 'say' }, h('b', {}, m.handle + ': '), m.text, m.ai ? h('span', { class: 'small', title: 'Written by the AI', style: 'margin-left:6px;opacity:.7' }, '✨AI') : ''));
   }
   function music(el) {
     const cur = getChannel();
