@@ -43,16 +43,42 @@ const prompt_ = (t) => { const p = $('#prompt'); p.style.display = t ? 'block' :
 
 // ----------------------------------------------------------- game context shared with the phone
 async function chatReply(name, text) {
-  const ai = await aiText(`You are ${name}, a friendly fellow driver and coffee fan texting the player of a casual racing game. Reply in one short sentence.`, [{ role: 'user', content: text }]);
+  const bio = state.bios?.[name];
+  const hist = (state.chats[name] || []).slice(-8).map((m) => ({ role: m.me ? 'user' : 'assistant', content: m.text }));
+  if (!hist.length || hist[hist.length - 1].role !== 'user') hist.push({ role: 'user', content: text });
+  const ai = await aiText(`You are ${name}${bio ? ', ' + bio : ', a friendly fellow driver and coffee fan'}, texting the player of a casual coffee racing game. Stay in character. Reply in one or two short sentences, no stage directions.`, hist);
   G.lastAi = !!ai;
-  return ai ? ai.replace(/\s+/g, ' ').slice(0, 240) : pick(['Ha! See you at the next coffee stand.', 'Nice. Mind the curves out there.', 'Good luck on the road!']);
+  return ai ? ai.replace(/\s+/g, ' ').slice(0, 240) : pick(PERSONA_LINES[name] || ['Ha! See you at the next coffee stand.', 'Nice. Mind the curves out there.', 'Good luck on the road!']);
+}
+const PERSONA_LINES = {
+  Tex: ["Well, partner, that's mighty fine. Duke agrees.", "Reckon so, partner. Drive safe now.", "Duke's got his nose up. Smells like fresh coffee, partner."],
+  Jill: ["Noted. Biscuit says hi. Don't be late.", "Quick one: how's the road? Gotta run.", "Ha, okay. Tell Biscuit he's a good boy. Actually, tell him from me."],
+};
+
+// Add a contact (with their persona bio) and optionally have them text first.
+function addContact(name, bio, firstText, ai = false) {
+  if (bio) (state.bios ||= {})[name] = bio;
+  if (!state.contacts.includes(name)) state.contacts.push(name);
+  if (!firstText || state.chatPrefs?.[name] === 'blocked') return;
+  (state.chats[name] ||= []).push(ai ? { text: firstText, ai: true } : { text: firstText });
+  if (state.chatPrefs?.[name] !== 'muted' && phone) notify(`💬 ${name}: ${firstText.slice(0, 70)}`, { sound: false, ms: 5000, onclick: () => phone.open('chat', { chat: name }) });
+  if (phone?.isOpen()) phone.render();
+}
+
+// After a visit, the barista texts a follow-up tip (written by the AI when available).
+async function baristaFollowUp(stand) {
+  const b = stand.barista, first = !state.contacts.includes(b.name);
+  const ctx = `Road: ${track.level.name || track.level.id}. Weather: ${state.weather}. You work at ${stand.name}.`;
+  const ai = await aiText(`You are ${b.name}, ${b.bio}. You just served the player at your roadside coffee stand in a casual racing game and now text them ${first ? 'for the first time, having swapped numbers' : 'a quick follow-up'}. One or two short, warm sentences, maybe a tip about the road ahead. No stage directions.`, [{ role: 'user', content: ctx }]);
+  const text = ai ? ai.replace(/\s+/g, ' ').slice(0, 240) : pick([`Thanks for stopping at ${stand.name}! Drive safe out there.`, 'Tip from me: take the next curves gently. Come by again!', 'Hope the coffee is treating you well. Text me if you need road tips.']);
+  addContact(b.name, b.bio, text, !!ai);
 }
 const G = {
   state, notify, setPaused: (p) => { paused = p || modalOpen; },
   price: (b, base) => base,
   menuFor: (b) => DATA.businesses.find((x) => x.id === b.id)?.menu || b.newMenu || [],
   snapshot: () => ({ state, player: { x: 0, z: 0 } }),
-  restore: (sv) => { Object.assign(state, sv.state); ensureState(); notify('Game loaded.'); },
+  restore: (sv) => { delete state.seededNpcs; Object.assign(state, sv.state); ensureState(); notify('Game loaded.'); },
   autoPending: () => { for (const d of [...state.bank.decisions]) eco.applyDecision(state, d, eco.heuristic(state, d), 'player', true); },
   aiText, npcReply: chatReply, printSheet, cbSay: (t) => cbSay(t),
   mapInfo: () => ({ track, player: race.player(), ai: race.ai() }),
@@ -62,6 +88,13 @@ function unlockRoast() { const nxt = DATA.roastStyles.find((r) => !state.roastsU
 function ensureState() {
   const r = R(); for (const [k, v] of Object.entries(newRaceState())) if (r[k] === undefined) r[k] = v;
   if (r.points < carById(r.car).unlock) r.car = 'round';
+  if (!state.seededNpcs) {
+    state.seededNpcs = true;
+    for (const [id, line] of [['tex', "Howdy, partner! Tex here. Duke and I heard you're racing. Holler if you want company."], ['jill', "Jill. Saved my number in your phone. Biscuit says good luck. Don't crash."]]) {
+      const n = (DATA.specialNpcs || []).find((x) => x.id === id);
+      if (n) addContact(n.name, n.bio, line);
+    }
+  }
 }
 
 // ----------------------------------------------------------- modal helpers
@@ -166,7 +199,7 @@ function saveLocal() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ state, player: { x: 0, z: 0 } })); } catch { /* quota */ }
   if (server.user) account.saveGame(G.snapshot()).catch(() => { /* offline: local save still exists */ });
 }
-function loadLocal() { try { const sv = JSON.parse(localStorage.getItem(SAVE_KEY)); if (sv) { Object.assign(state, sv.state); ensureState(); if (state.musicChannel) setChannel(state.musicChannel); return true; } } catch { /* ignore */ } return false; }
+function loadLocal() { try { const sv = JSON.parse(localStorage.getItem(SAVE_KEY)); if (sv) { delete state.seededNpcs; Object.assign(state, sv.state); ensureState(); if (state.musicChannel) setChannel(state.musicChannel); return true; } } catch { /* ignore */ } return false; }
 
 // ----------------------------------------------------------- input
 function wireInput() {
@@ -289,7 +322,7 @@ const fmtTime = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, 
 const BARISTA_LINES = ['Welcome in! Fresh pot, hot off the trailer.', 'You look like you are in a hurry. Coffee helps with that.', 'Robo-taxi went by earlier. It did not even wave.', 'The road is the best part of the day, honestly.', 'Take it easy on the curves ahead!', 'On the house: a smile. The coffee is extra.'];
 const itemSrc = (name, kind) => svgURI(foodSVG(kindFor(name, kind) || 'platter'));
 function openStand(stand) {
-  const log = []; const r = R(); const b = stand.barista;
+  const log = []; const r = R(); const b = stand.barista; let engaged = false;
   openModal((card) => {
     const chat = h('div', { class: 'chat' }); const inp = h('input', { placeholder: `Say something to ${b.name}…`, style: 'width:100%' });
     const say = (who, text, isAi = false) => { log.push({ who, text }); chat.append(h('div', { class: 'say' + (who === 'You' ? ' me' : '') }, h('b', {}, who + ': '), text, isAi ? h('span', { class: 'small', title: 'Written by the AI', style: 'margin-left:6px;opacity:.7' }, '✨AI') : '')); chat.scrollTop = chat.scrollHeight; };
@@ -297,12 +330,13 @@ function openStand(stand) {
       const ai = await aiText(`You are ${b.name}, ${b.bio}, working at ${stand.name}, a roadside coffee stand in a casual racing game. Be warm and funny. Reply in 1-2 short sentences, no stage directions.`, log.map((l) => ({ role: l.who === 'You' ? 'user' : 'assistant', content: l.text })).slice(-8));
       say(b.name, ai ? ai.replace(/\s+/g, ' ').slice(0, 280) : pick(BARISTA_LINES), !!ai);
     };
-    const send = (t) => { if (!t) return; inp.value = ''; say('You', t); reply(t); };
+    const send = (t) => { if (!t) return; engaged = true; inp.value = ''; say('You', t); reply(t); };
     const wallet = h('div', { class: 'small' }, '');
     const refresh = () => { wallet.textContent = `Cash ${money(r.cash)} · Carrying ${r.boosts}/3`; };
     const buy = (item) => {
       if (r.boosts >= 3) return notify('You can carry at most 3 coffees.', { sound: false });
       if (r.cash < item[1]) return notify('Not enough funds.');
+      engaged = true;
             r.cash -= item[1]; r.boosts++; r.coffees++; race.boosts = r.boosts; sfx('coin');
       if (!state.diary.some((d) => d.name === item[0])) state.diary.push({ name: item[0], kind: kindFor(item[0], item[2]) || item[2], where: stand.name, day: state.day });
       notify(`☕ ${item[0]} packed for the road (${r.boosts}/3). Press ☕ while driving to boost.`, { sound: false });
@@ -318,7 +352,7 @@ function openStand(stand) {
     card.style.maxWidth = '900px';
     card.append(h('div', { class: 'split' }, menu, talk), h('div', { class: 'row' }, h('button', { class: 'btn warn', onclick: closeModal }, '🚗 Back on the road')));
     say(b.name, pick(BARISTA_LINES));
-  }, () => { $('#modal-card').style.maxWidth = ''; });
+  }, () => { $('#modal-card').style.maxWidth = ''; if (engaged) setTimeout(() => baristaFollowUp(stand), 6000 + Math.random() * 10000); });
 }
 
 // ----------------------------------------------------------- screenshots

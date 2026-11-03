@@ -445,7 +445,7 @@ export function createPhone(G) {
       return;
     }
     el.append(h('h3', {}, '💬 Chat'));
-    if (!s.contacts.length) el.append(h('p', {}, 'No contacts yet. After a good conversation someone might offer to swap numbers.'));
+    if (!s.contacts.length) el.append(h('p', {}, 'No contacts yet. Chat with baristas at roadside stands and they may text you.'));
     for (const c of s.contacts) el.append(h('div', { class: 'bizcard', style: 'margin:6px 0;cursor:pointer', onclick: () => { chatWith = c; render(); } }, h('b', {}, c, prefs[c] === 'muted' ? ' 🔕' : prefs[c] === 'blocked' ? ' 🚫' : ''), ' ', h('span', { class: 'small' }, (s.chats[c] || []).slice(-1)[0]?.text?.slice(0, 40) || ''), h('div', { class: 'row' }, muteBtn(c), blockBtn(c))));
   }
   function cbApp(el) {
